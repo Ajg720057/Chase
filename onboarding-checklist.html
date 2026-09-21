@@ -486,12 +486,15 @@
 
   /* ============================ APP STATE ============================ */
 
-  // A link with `?hire=<id>&view=newhire` opens straight into that one
+  // A link with `#hire=<id>&view=newhire` opens straight into that one
   // person's new-hire checklist, with no access to the manager checklist or
   // to any other hire. Any other URL (the default) is the manager view.
+  // The hash (not a query string) carries this so it survives unchanged
+  // through any hosting/CDN layer between the link and this page.
   function getRoleFromLocation() {
     try {
-      var params = new URLSearchParams(location.search);
+      var raw = location.hash && location.hash.length > 1 ? location.hash.slice(1) : location.search.replace(/^\?/, "");
+      var params = new URLSearchParams(raw);
       var hireId = params.get("hire");
       if (hireId && params.get("view") === "newhire") return { role: "newhire", hireId: hireId };
     } catch (e) {}
@@ -674,8 +677,8 @@
   }
 
   function buildNewHireLink(hireId) {
-    var base = location.origin + location.pathname;
-    return base + "?hire=" + encodeURIComponent(hireId) + "&view=newhire";
+    var base = location.origin + location.pathname + location.search;
+    return base + "#hire=" + encodeURIComponent(hireId) + "&view=newhire";
   }
 
   function renderShareRow(hire) {

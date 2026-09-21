@@ -131,7 +131,7 @@
   .detail-name { font-size: 20px; margin: 0; }
   .detail-meta { color: var(--ink-muted); font-size: 13px; margin-top: 4px; }
 
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
   .stat-tile { padding: 14px 16px; }
   .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 600; }
   .stat-value { font-family: "Sora", sans-serif; font-size: 24px; font-weight: 700; margin-top: 4px; }
@@ -182,7 +182,6 @@
   .section-title { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
 
   @media (max-width: 560px) {
-    .stat-row { grid-template-columns: repeat(2, 1fr); }
     .form-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -339,11 +338,35 @@
 
     init: function () {
       var self = this;
-      if (!window.claude || !window.claude.use) { self.cache = self.readLocal(); self.emit(); return; }
+      // A new-hire link (`?hire=<id>&view=newhire`) subscribes to just that one
+      // document — the rest of the workspace's hires are never fetched into
+      // this viewer's browser at all.
+      var soloId = state.role === "newhire" ? state.hireId : null;
+
+      var localFallback = function (message) {
+        self.cache = soloId ? self.readLocal().filter(function (h) { return h.id === soloId; }) : self.readLocal();
+        if (message) self.syncError = message;
+        self.emit();
+      };
+
+      if (!window.claude || !window.claude.use) { localFallback(); return; }
       window.claude.use("db").then(function (db) {
-        if (!db) { self.cache = self.readLocal(); self.emit(); return; }
+        if (!db) { localFallback(); return; }
         self.db = db;
         self.mode = "db";
+
+        if (soloId) {
+          self.unsub = db.doc("hires/" + soloId).onSnapshot(function (snap) {
+            self.cache = snap.exists ? [Object.assign({ id: snap.id }, snap.data())] : [];
+            self.syncError = snap.exists ? null : "This onboarding link isn't valid — the record may have been removed.";
+            self.emit();
+          }, function (err) {
+            self.syncError = (err && err.message) || "Lost the live connection to your onboarding checklist.";
+            self.emit();
+          });
+          return;
+        }
+
         var q = db.collection("hires").orderBy("startDate", "desc").limit(200);
         self.unsub = q.onSnapshot(function (snap) {
           var docs = snap.docs.map(function (d) {
@@ -366,9 +389,7 @@
         });
       }).catch(function () {
         self.mode = "local";
-        self.cache = self.readLocal();
-        self.syncError = "Couldn't reach the shared workspace — working on this device only.";
-        self.emit();
+        localFallback("Couldn't reach the shared workspace — working on this device only.");
       });
 
       if (window.claude && window.claude.use) {
@@ -465,18 +486,35 @@
 
   /* ============================ APP STATE ============================ */
 
+  // A link with `?hire=<id>&view=newhire` opens straight into that one
+  // person's new-hire checklist, with no access to the manager checklist or
+  // to any other hire. Any other URL (the default) is the manager view.
+  function getRoleFromLocation() {
+    try {
+      var params = new URLSearchParams(location.search);
+      var hireId = params.get("hire");
+      if (hireId && params.get("view") === "newhire") return { role: "newhire", hireId: hireId };
+    } catch (e) {}
+    return { role: "manager", hireId: null };
+  }
+
+  var roleInfo = getRoleFromLocation();
+
   var state = {
     hires: [],
     route: "overview", // "overview" | "detail"
     selectedId: null,
     mode: "manager",
     showAddForm: false,
-    profiles: {}
+    profiles: {},
+    role: roleInfo.role,       // "manager" | "newhire"
+    hireId: roleInfo.hireId,   // set only for a scoped new-hire link
+    shareOpenFor: null
   };
 
   Store.onChange(function (hires) {
     state.hires = hires;
-    if (state.selectedId && !hires.some(function (h) { return h.id === state.selectedId; })) {
+    if (state.role === "manager" && state.selectedId && !hires.some(function (h) { return h.id === state.selectedId; })) {
       state.selectedId = null;
       state.route = "overview";
     }
@@ -532,6 +570,7 @@
   var app = document.getElementById("app");
 
   function render() {
+    if (state.role === "newhire") { app.innerHTML = renderNewHireSolo(); return; }
     app.innerHTML = state.route === "detail" && state.selectedId
       ? renderDetail(state.hires.filter(function (h) { return h.id === state.selectedId; })[0])
       : renderOverview();
@@ -626,39 +665,38 @@
     );
   }
 
-  function renderDetail(hire) {
-    if (!hire) return renderOverview();
-    var mode = MODES[state.mode];
-    var startTs = parseISO(hire.startDate);
-    var today = todayTs();
-    var dayNum = Math.floor((today - startTs) / 86400000) + 1;
-    var dayText = dayNum < 1 ? ("Starts in " + Math.abs(dayNum - 1) + "d") : dayNum > 90 ? "Complete" : ("Day " + dayNum);
+  function statTile(label, value, sub, warn) {
+    return (
+      '<div class="card stat-tile"><div class="stat-label">' + label + '</div>' +
+      '<div class="stat-value mono' + (warn ? " warn" : "") + '">' + value + "</div>" +
+      '<div class="stat-sub">' + sub + "</div></div>"
+    );
+  }
 
-    var mgr = progressFor(hire, MANAGER_ITEMS);
-    var nh = progressFor(hire, NEWHIRE_ITEMS);
-    var overdue = mgr.overdue + nh.overdue;
-    var current = progressFor(hire, mode.items);
-    var nextItem = current.next;
+  function buildNewHireLink(hireId) {
+    var base = location.origin + location.pathname;
+    return base + "?hire=" + encodeURIComponent(hireId) + "&view=newhire";
+  }
 
-    var stats = (
-      '<div class="stat-row">' +
-        '<div class="card stat-tile"><div class="stat-label">Timeline</div><div class="stat-value mono">' + dayText + '</div><div class="stat-sub">of 90 days</div></div>' +
-        '<div class="card stat-tile"><div class="stat-label">Manager tasks</div><div class="stat-value mono">' + mgr.done + "/" + mgr.total + '</div><div class="stat-sub">' + mgr.pct + '% complete</div></div>' +
-        '<div class="card stat-tile"><div class="stat-label">New hire tasks</div><div class="stat-value mono">' + nh.done + "/" + nh.total + '</div><div class="stat-sub">' + nh.pct + '% complete</div></div>' +
-        '<div class="card stat-tile"><div class="stat-label">Overdue</div><div class="stat-value mono' + (overdue > 0 ? " warn" : "") + '">' + overdue + '</div><div class="stat-sub">' + (nextItem ? "next due " + fmtDate(nextItem.dueTs) : "all caught up") + "</div></div>" +
+  function renderShareRow(hire) {
+    if (state.shareOpenFor !== hire.id) return "";
+    var url = buildNewHireLink(hire.id);
+    var firstName = escapeHtml((hire.name || "").split(" ")[0] || hire.name);
+    return (
+      '<div style="display:flex;flex-direction:column;gap:6px;padding-top:2px;">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<input class="mono" readonly value="' + escapeHtml(url) + '" onfocus="this.select()" onclick="this.select()" ' +
+            'style="flex:1;min-width:220px;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--ink);">' +
+          '<button class="btn" type="button" data-action="copy-share-link" data-url="' + escapeHtml(url) + '">Copy link</button>' +
+        "</div>" +
+        '<div class="hire-meta">Anyone with this link sees only ' + firstName + "’s new-hire checklist — not the manager checklist or other hires.</div>" +
       "</div>"
     );
+  }
 
-    var tabs = (
-      '<div class="tabs">' +
-        Object.keys(MODES).map(function (key) {
-          var p = progressFor(hire, MODES[key].items);
-          return '<button class="tab' + (state.mode === key ? " active" : "") + '" data-tab="' + key + '" type="button">' +
-            MODES[key].label + '<span class="tab-pct">' + p.pct + "%</span></button>";
-        }).join("") +
-      "</div>"
-    );
-
+  // Shared by the manager's detail view (which passes the active tab's mode)
+  // and the new-hire solo view (which always passes the new-hire mode).
+  function renderPhaseNavAndSections(hire, mode, startTs, today, dayNum) {
     var phaseNav = (
       '<div class="phase-nav">' +
         mode.phases.map(function (p) {
@@ -704,6 +742,42 @@
       );
     }).join("");
 
+    return phaseNav + '<div style="display:flex;flex-direction:column;gap:20px;">' + sections + "</div>";
+  }
+
+  function renderDetail(hire) {
+    if (!hire) return renderOverview();
+    var mode = MODES[state.mode];
+    var startTs = parseISO(hire.startDate);
+    var today = todayTs();
+    var dayNum = Math.floor((today - startTs) / 86400000) + 1;
+    var dayText = dayNum < 1 ? ("Starts in " + Math.abs(dayNum - 1) + "d") : dayNum > 90 ? "Complete" : ("Day " + dayNum);
+
+    var mgr = progressFor(hire, MANAGER_ITEMS);
+    var nh = progressFor(hire, NEWHIRE_ITEMS);
+    var overdue = mgr.overdue + nh.overdue;
+    var current = progressFor(hire, mode.items);
+    var nextItem = current.next;
+
+    var stats = (
+      '<div class="stat-row">' +
+        statTile("Timeline", dayText, "of 90 days") +
+        statTile("Manager tasks", mgr.done + "/" + mgr.total, mgr.pct + "% complete") +
+        statTile("New hire tasks", nh.done + "/" + nh.total, nh.pct + "% complete") +
+        statTile("Overdue", overdue, nextItem ? "next due " + fmtDate(nextItem.dueTs) : "all caught up", overdue > 0) +
+      "</div>"
+    );
+
+    var tabs = (
+      '<div class="tabs">' +
+        Object.keys(MODES).map(function (key) {
+          var p = progressFor(hire, MODES[key].items);
+          return '<button class="tab' + (state.mode === key ? " active" : "") + '" data-tab="' + key + '" type="button">' +
+            MODES[key].label + '<span class="tab-pct">' + p.pct + "%</span></button>";
+        }).join("") +
+      "</div>"
+    );
+
     return (
       renderTopbar() +
       '<div>' +
@@ -715,14 +789,59 @@
             '<h2 class="detail-name">' + escapeHtml(hire.name) + "</h2>" +
             '<div class="detail-meta">' + escapeHtml(hire.role || "New hire") + " · Manager: " + escapeHtml(hire.managerName || "—") + " · Starts " + fmtDateShort(startTs) + "</div>" +
           "</div>" +
-          '<button class="btn btn-ghost btn-danger" data-action="remove-hire" data-id="' + escapeHtml(hire.id) + '" type="button">Remove</button>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<button class="btn" data-action="toggle-share" data-id="' + escapeHtml(hire.id) + '" type="button">Share with new hire</button>' +
+            '<button class="btn btn-ghost btn-danger" data-action="remove-hire" data-id="' + escapeHtml(hire.id) + '" type="button">Remove</button>' +
+          "</div>" +
+        "</div>" +
+        stats +
+        renderShareRow(hire) +
+      "</div>" +
+      '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
+        tabs +
+        renderPhaseNavAndSections(hire, mode, startTs, today, dayNum) +
+      "</div>"
+    );
+  }
+
+  function renderNewHireSolo() {
+    var hire = state.hires.filter(function (h) { return h.id === state.hireId; })[0];
+    if (!hire) {
+      return (
+        renderTopbar() +
+        '<div class="card empty-state">' +
+          (Store.syncError || "Loading your onboarding checklist…") +
+        "</div>"
+      );
+    }
+
+    var mode = MODES.newhire;
+    var startTs = parseISO(hire.startDate);
+    var today = todayTs();
+    var dayNum = Math.floor((today - startTs) / 86400000) + 1;
+    var dayText = dayNum < 1 ? ("Starts " + fmtDateShort(startTs)) : dayNum > 90 ? "Complete" : ("Day " + dayNum);
+    var p = progressFor(hire, mode.items);
+    var firstName = escapeHtml((hire.name || "").split(" ")[0] || hire.name);
+
+    var stats = (
+      '<div class="stat-row">' +
+        statTile("Timeline", dayText, "of 90 days") +
+        statTile("Your tasks", p.done + "/" + p.total, p.pct + "% complete") +
+        statTile("Overdue", p.overdue, p.next ? "next due " + fmtDate(p.next.dueTs) : "all caught up", p.overdue > 0) +
+      "</div>"
+    );
+
+    return (
+      renderTopbar() +
+      '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
+        '<div>' +
+          '<h2 class="detail-name">Welcome, ' + firstName + "</h2>" +
+          '<div class="detail-meta">Your 90-day plan · started ' + fmtDateShort(startTs) + "</div>" +
         "</div>" +
         stats +
       "</div>" +
       '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
-        tabs +
-        phaseNav +
-        '<div style="display:flex;flex-direction:column;gap:20px;">' + sections + "</div>" +
+        renderPhaseNavAndSections(hire, mode, startTs, today, dayNum) +
       "</div>"
     );
   }
@@ -744,6 +863,25 @@
 
     var dismiss = e.target.closest('[data-action="dismiss-error"]');
     if (dismiss) { Store.syncError = null; render(); return; }
+
+    var toggleShare = e.target.closest('[data-action="toggle-share"]');
+    if (toggleShare) {
+      var shareId = toggleShare.getAttribute("data-id");
+      state.shareOpenFor = state.shareOpenFor === shareId ? null : shareId;
+      render();
+      return;
+    }
+
+    var copyLink = e.target.closest('[data-action="copy-share-link"]');
+    if (copyLink) {
+      var linkUrl = copyLink.getAttribute("data-url");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkUrl).catch(function () {});
+      }
+      var linkInput = copyLink.previousElementSibling;
+      if (linkInput && linkInput.select) linkInput.select();
+      return;
+    }
 
     var remove = e.target.closest('[data-action="remove-hire"]');
     if (remove) {
@@ -767,7 +905,8 @@
 
   app.addEventListener("change", function (e) {
     if (e.target.matches(".item-check")) {
-      Store.setItemDone(state.selectedId, e.target.getAttribute("data-item"), e.target.checked);
+      var activeHireId = state.role === "newhire" ? state.hireId : state.selectedId;
+      Store.setItemDone(activeHireId, e.target.getAttribute("data-item"), e.target.checked);
     }
   });
 

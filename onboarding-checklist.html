@@ -1,0 +1,796 @@
+<title>The First 90</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f6f3;
+    --surface: #ffffff;
+    --surface-2: #eaede7;
+    --border: #dbe1d7;
+    --ink: #16211c;
+    --ink-2: #4c584f;
+    --ink-muted: #7d897f;
+    --accent: #1f5d5b;
+    --accent-strong: #123f3d;
+    --accent-soft: #dcece7;
+    --accent-2: #2a5c8a;
+    --accent-2-soft: #e2ecf5;
+    --good: #0ca30c;
+    --warning: #b9790c;
+    --critical: #c23434;
+    --shadow: 0 1px 2px rgba(20,30,25,0.06), 0 8px 24px -12px rgba(20,30,25,0.18);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #101714;
+      --surface: #17211d;
+      --surface-2: #1e2a25;
+      --border: #2c3a33;
+      --ink: #eef3ef;
+      --ink-2: #c2cdc5;
+      --ink-muted: #8c988e;
+      --accent: #56b8ad;
+      --accent-strong: #86d3c8;
+      --accent-soft: #16332f;
+      --accent-2: #7dabdc;
+      --accent-2-soft: #16283a;
+      --good: #3fc23f;
+      --warning: #e0a53a;
+      --critical: #e57070;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101714;
+    --surface: #17211d;
+    --surface-2: #1e2a25;
+    --border: #2c3a33;
+    --ink: #eef3ef;
+    --ink-2: #c2cdc5;
+    --ink-muted: #8c988e;
+    --accent: #56b8ad;
+    --accent-strong: #86d3c8;
+    --accent-soft: #16332f;
+    --accent-2: #7dabdc;
+    --accent-2-soft: #16283a;
+    --good: #3fc23f;
+    --warning: #e0a53a;
+    --critical: #e57070;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-inline: 20px;
+    padding-block: 28px 48px;
+  }
+  h1, h2, h3, .display { font-family: "Sora", "Inter", sans-serif; letter-spacing: -0.01em; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  #app { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+
+  a { color: inherit; }
+  button { font: inherit; color: inherit; }
+
+  /* ---- top bar ---- */
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 22px; margin: 0; }
+  .topbar .tagline { color: var(--ink-muted); font-size: 13px; margin-top: 2px; }
+  .sync-pill { font-size: 11.5px; color: var(--ink-muted); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); flex: none; }
+  .sync-dot.local { background: var(--warning); }
+  .sync-dot.error { background: var(--critical); }
+  .sync-pill:has(.sync-dot.error) { border-color: var(--critical); color: var(--critical); }
+
+  /* ---- buttons ---- */
+  .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 9px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background .12s, border-color .12s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-ghost { border-color: transparent; background: transparent; }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-danger { color: var(--critical); }
+
+  /* ---- cards / surfaces ---- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .pad { padding: 18px 20px; }
+
+  /* ---- overview list ---- */
+  .hire-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .hire-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; text-align: left; width: 100%; }
+  .hire-card:hover { border-color: var(--accent); }
+  .hire-name { font-family: "Sora", sans-serif; font-weight: 700; font-size: 15px; }
+  .hire-meta { color: var(--ink-muted); font-size: 12.5px; }
+  .mini-bars { display: flex; flex-direction: column; gap: 6px; }
+  .mini-bar-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-2); }
+  .mini-bar-label { width: 58px; flex: none; }
+  .mini-bar-track { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 999px; background: var(--accent); }
+  .mini-bar-fill.newhire { background: var(--accent-2); }
+  .mini-bar-pct { width: 32px; text-align: right; flex: none; }
+  .hire-flags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .empty-state { padding: 34px 20px; text-align: center; color: var(--ink-muted); font-size: 13.5px; }
+
+  /* ---- add hire form ---- */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  input[type="text"], input[type="date"] {
+    font: inherit; font-size: 13.5px; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--ink); width: 100%;
+  }
+  input:focus-visible, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+  /* ---- detail header ---- */
+  .detail-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .detail-name { font-size: 20px; margin: 0; }
+  .detail-meta { color: var(--ink-muted); font-size: 13px; margin-top: 4px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat-tile { padding: 14px 16px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 600; }
+  .stat-value { font-family: "Sora", sans-serif; font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .stat-value.warn { color: var(--critical); }
+  .stat-sub { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+
+  /* ---- tabs ---- */
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 4px; margin-bottom: -1px; border-bottom: 2px solid transparent; background: transparent; border-radius: 0; cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--ink-muted); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .tab-pct { font-family: "JetBrains Mono", monospace; font-weight: 500; margin-left: 5px; color: var(--ink-muted); }
+
+  /* ---- phase jump nav ---- */
+  .phase-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  .phase-chip { font-size: 11.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+  .phase-chip.current { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  /* ---- checklist ---- */
+  .phase-section { display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 12px; }
+  .phase-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 2px 2px; }
+  .phase-title-wrap { display: flex; align-items: baseline; gap: 8px; }
+  .phase-title { font-family: "Sora", sans-serif; font-weight: 700; font-size: 13.5px; }
+  .phase-window { font-size: 11.5px; color: var(--ink-muted); }
+  .phase-count { font-size: 12px; color: var(--ink-muted); }
+  .phase-section.current .phase-title { color: var(--accent); }
+
+  .item-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; border-radius: 10px; }
+  .item-row:hover { background: var(--surface-2); }
+  .item-row.done .item-title { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--border); }
+  .item-check { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
+  .item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .item-title { font-size: 13.5px; font-weight: 500; }
+  .item-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-muted); }
+  .item-due { font-family: "JetBrains Mono", monospace; }
+  .item-by { color: var(--ink-muted); }
+
+  .status-pill { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
+  .status-pill.status-done { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .status-pill.status-done::before { background: var(--good); }
+  .status-pill.status-overdue { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+  .status-pill.status-overdue::before { background: var(--critical); }
+  .status-pill.status-soon { color: var(--warning); background: color-mix(in srgb, var(--warning) 16%, transparent); }
+  .status-pill.status-soon::before { background: var(--warning); }
+  .status-pill.status-upcoming { color: var(--ink-muted); background: var(--surface-2); }
+  .status-pill.status-upcoming::before { background: var(--ink-muted); }
+
+  .section-title { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+
+  @media (max-width: 560px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div id="app"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================ CHECKLIST DATA ============================ */
+  // offsetDays is calendar days added to the start date. Day label = offsetDays + 1
+  // (offsetDays 0 == "Day 1", the start date itself). Negative offsets fall before Day 1.
+
+  var MANAGER_PHASES = [
+    { id: "pre2",   label: "2 Weeks Out",     from: -14, to: -8 },
+    { id: "pre1",   label: "1 Week Out",      from: -7,  to: -3 },
+    { id: "prefin", label: "Final 48 Hours",  from: -2,  to: -1 },
+    { id: "day1",   label: "Day 1",           from: 0,   to: 0 },
+    { id: "week1",  label: "Week 1",          from: 1,   to: 6 },
+    { id: "month1", label: "Weeks 2–4",  from: 7,   to: 29 },
+    { id: "month2", label: "Days 31–60", from: 30,  to: 59 },
+    { id: "month3", label: "Days 61–90", from: 60,  to: 89 }
+  ];
+
+  var MANAGER_ITEMS = [
+    { id: "m01", phase: "pre2",   offsetDays: -14, title: "Confirm offer accepted and start date is locked" },
+    { id: "m02", phase: "pre2",   offsetDays: -14, title: "Request equipment (laptop, monitor, peripherals) from IT" },
+    { id: "m03", phase: "pre2",   offsetDays: -13, title: "Open IT ticket for accounts: email, SSO, core systems" },
+    { id: "m04", phase: "pre2",   offsetDays: -12, title: "Notify HR / payroll to begin benefits and payroll setup" },
+    { id: "m05", phase: "pre2",   offsetDays: -10, title: "Draft the 30/60/90-day plan" },
+    { id: "m06", phase: "pre1",   offsetDays: -7,  title: "Assign an onboarding buddy" },
+    { id: "m07", phase: "pre1",   offsetDays: -7,  title: "Reserve desk, or confirm remote workstation shipping address" },
+    { id: "m08", phase: "pre1",   offsetDays: -6,  title: "Block out Week 1 calendar: intros, training, 1:1s" },
+    { id: "m09", phase: "pre1",   offsetDays: -5,  title: "Share the 30/60/90-day plan with the team" },
+    { id: "m10", phase: "pre1",   offsetDays: -4,  title: "Order building badge / access card" },
+    { id: "m11", phase: "prefin", offsetDays: -2,  title: "Send welcome email with first-day logistics" },
+    { id: "m12", phase: "prefin", offsetDays: -1,  title: "Confirm accounts are active and equipment has arrived" },
+    { id: "m13", phase: "prefin", offsetDays: -1,  title: "Draft team announcement" },
+    { id: "m14", phase: "day1",   offsetDays: 0,   title: "Greet new hire; walk through facilities and access" },
+    { id: "m15", phase: "day1",   offsetDays: 0,   title: "Hold first 1:1 — role expectations and the 30/60/90 plan" },
+    { id: "m16", phase: "day1",   offsetDays: 0,   title: "Send the team announcement" },
+    { id: "m17", phase: "day1",   offsetDays: 0,   title: "Confirm workstation, accounts, and tools all work" },
+    { id: "m18", phase: "week1",  offsetDays: 2,   title: "Mid-week check-in — surface early blockers" },
+    { id: "m19", phase: "week1",  offsetDays: 4,   title: "Verify required compliance / security training is scheduled" },
+    { id: "m20", phase: "week1",  offsetDays: 6,   title: "End-of-week-1 1:1 — feedback and open questions" },
+    { id: "m21", phase: "month1", offsetDays: 13,  title: "2-week check-in — review early performance" },
+    { id: "m22", phase: "month1", offsetDays: 20,  title: "Assign first meaningful project or task" },
+    { id: "m23", phase: "month1", offsetDays: 29,  title: "30-day review — assess progress, set 60-day goals" },
+    { id: "m24", phase: "month2", offsetDays: 44,  title: "Mid-point check-in" },
+    { id: "m25", phase: "month2", offsetDays: 59,  title: "60-day review — evaluate progress, adjust training plan" },
+    { id: "m26", phase: "month3", offsetDays: 74,  title: "Check in ahead of the 90-day review" },
+    { id: "m27", phase: "month3", offsetDays: 89,  title: "90-day review — formal evaluation and path forward" },
+    { id: "m28", phase: "month3", offsetDays: 89,  title: "Collect the new hire's feedback on their onboarding" }
+  ];
+
+  var NEWHIRE_PHASES = [
+    { id: "day1",   label: "Day 1",           from: 0,  to: 0 },
+    { id: "week1",  label: "Week 1",          from: 1,  to: 6 },
+    { id: "month1", label: "Weeks 2–4",  from: 7,  to: 29 },
+    { id: "month2", label: "Days 31–60", from: 30, to: 59 },
+    { id: "month3", label: "Days 61–90", from: 60, to: 89 }
+  ];
+
+  var NEWHIRE_ITEMS = [
+    { id: "n01", phase: "day1",   offsetDays: 0,  title: "Complete new-hire paperwork (I-9, tax forms, benefits elections)" },
+    { id: "n02", phase: "day1",   offsetDays: 0,  title: "Log into email, chat, and core systems" },
+    { id: "n03", phase: "day1",   offsetDays: 0,  title: "Meet your manager for a first 1:1" },
+    { id: "n04", phase: "day1",   offsetDays: 0,  title: "Meet your immediate team" },
+    { id: "n05", phase: "day1",   offsetDays: 0,  title: "Review your 30/60/90-day plan" },
+    { id: "n06", phase: "week1",  offsetDays: 1,  title: "Complete required compliance and security training" },
+    { id: "n07", phase: "week1",  offsetDays: 2,  title: "Set up your workstation and dev / work environment" },
+    { id: "n08", phase: "week1",  offsetDays: 3,  title: "Read the team handbook and key documentation" },
+    { id: "n09", phase: "week1",  offsetDays: 4,  title: "Shadow a team meeting or customer call" },
+    { id: "n10", phase: "week1",  offsetDays: 6,  title: "Schedule 1:1s with key cross-functional partners" },
+    { id: "n11", phase: "month1", offsetDays: 9,  title: "Complete role-specific training or certification" },
+    { id: "n12", phase: "month1", offsetDays: 13, title: "Attend your 2-week check-in" },
+    { id: "n13", phase: "month1", offsetDays: 20, title: "Take on your first small task or project" },
+    { id: "n14", phase: "month1", offsetDays: 27, title: "Share informal feedback on your onboarding so far" },
+    { id: "n15", phase: "month1", offsetDays: 29, title: "Attend your 30-day review" },
+    { id: "n16", phase: "month2", offsetDays: 39, title: "Take ownership of a project with less oversight" },
+    { id: "n17", phase: "month2", offsetDays: 49, title: "Deepen product / domain knowledge" },
+    { id: "n18", phase: "month2", offsetDays: 59, title: "Attend your 60-day review — self-assess against goals" },
+    { id: "n19", phase: "month3", offsetDays: 69, title: "Contribute independently to a team goal" },
+    { id: "n20", phase: "month3", offsetDays: 79, title: "Identify growth areas and draft next-quarter goals" },
+    { id: "n21", phase: "month3", offsetDays: 89, title: "Attend your 90-day review" },
+    { id: "n22", phase: "month3", offsetDays: 89, title: "Complete the onboarding feedback survey" }
+  ];
+
+  var MODES = {
+    manager: { label: "Manager checklist", phases: MANAGER_PHASES, items: MANAGER_ITEMS, key: "manager" },
+    newhire: { label: "New hire checklist", phases: NEWHIRE_PHASES, items: NEWHIRE_ITEMS, key: "newhire" }
+  };
+
+  /* ============================ DATE HELPERS ============================ */
+
+  function parseISO(s) {
+    var parts = s.split("-").map(Number);
+    return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+  }
+  function addDaysTs(ts, n) { return ts + n * 86400000; }
+  function todayTs() {
+    var d = new Date();
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+  }
+  function fmtDateShort(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+  }
+  function dayLabel(offsetDays) {
+    return offsetDays >= 0 ? ("Day " + (offsetDays + 1)) : (Math.abs(offsetDays) + "d before Day 1");
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function initials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+  }
+
+  /* ============================ STORAGE LAYER ============================ */
+  // Prefers the shared `db` capability so a manager and a new hire opening the
+  // same link see one synced record. Falls back to this browser's storage
+  // when the capability is unavailable, so the page still works stand-alone.
+
+  var LOCAL_KEY = "first90-hires-v1";
+
+  var Store = {
+    mode: "local", // "db" | "local"
+    db: null,
+    userId: null,
+    unsub: null,
+    listeners: [],
+    cache: [],        // authoritative, always-rendered list (db docs + any not-yet-confirmed local writes)
+    syncError: null,  // last write/connection error, surfaced in the UI instead of swallowed
+
+    onChange: function (fn) { this.listeners.push(fn); },
+    emit: function () { var self = this; this.listeners.forEach(function (fn) { fn(self.cache); }); },
+
+    readLocal: function () {
+      try {
+        var raw = localStorage.getItem(LOCAL_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    },
+    writeLocal: function (hires) {
+      try { localStorage.setItem(LOCAL_KEY, JSON.stringify(hires)); } catch (e) {}
+    },
+
+    init: function () {
+      var self = this;
+      if (!window.claude || !window.claude.use) { self.cache = self.readLocal(); self.emit(); return; }
+      window.claude.use("db").then(function (db) {
+        if (!db) { self.cache = self.readLocal(); self.emit(); return; }
+        self.db = db;
+        self.mode = "db";
+        var q = db.collection("hires").orderBy("startDate", "desc").limit(200);
+        self.unsub = q.onSnapshot(function (snap) {
+          var docs = snap.docs.map(function (d) {
+            var data = d.data() || {};
+            data.id = d.id;
+            return data;
+          });
+          var confirmedClientIds = docs.map(function (d) { return d.clientId; }).filter(Boolean);
+          // Keep any optimistic, not-yet-confirmed local entries so a just-added
+          // hire never disappears while the write is still in flight.
+          var stillPending = self.cache.filter(function (h) {
+            return h._pending && confirmedClientIds.indexOf(h.clientId) === -1;
+          });
+          self.cache = docs.concat(stillPending);
+          self.syncError = null;
+          self.emit();
+        }, function (err) {
+          self.syncError = (err && err.message) || "Lost the live connection to your team's data.";
+          self.emit();
+        });
+      }).catch(function () {
+        self.mode = "local";
+        self.cache = self.readLocal();
+        self.syncError = "Couldn't reach the shared workspace — working on this device only.";
+        self.emit();
+      });
+
+      if (window.claude && window.claude.use) {
+        window.claude.use("user").then(function (u) {
+          if (!u) return;
+          return u.id();
+        }).then(function (id) { if (id) self.userId = id; }).catch(function () {});
+      }
+    },
+
+    // Applies `mutate` to the in-memory cache immediately (so the UI reflects
+    // the change with zero delay) and always emits, regardless of whether the
+    // underlying write below succeeds, fails, or is still pending.
+    applyOptimistic: function (mutate) {
+      this.cache = mutate(this.cache);
+      this.emit();
+    },
+
+    addHire: function (payload) {
+      var clientId = "c" + Date.now() + Math.random().toString(36).slice(2, 8);
+      payload.clientId = clientId;
+      payload.checklist = {};
+      payload.createdAt = new Date().toISOString();
+      payload.createdBy = this.userId || null;
+
+      var optimistic = Object.assign({}, payload, { id: clientId, _pending: this.mode === "db" && !!this.db });
+      this.applyOptimistic(function (hires) { return [optimistic].concat(hires); });
+
+      if (this.mode === "db" && this.db) {
+        var self = this;
+        this.db.collection("hires").add(payload).catch(function (err) {
+          // Write failed (permissions, offline, etc.) — keep the hire visible by
+          // demoting it to this device's local storage instead of losing it.
+          optimistic._pending = false;
+          optimistic._localOnly = true;
+          var local = self.readLocal();
+          local.unshift(optimistic);
+          self.writeLocal(local);
+          self.syncError = "Couldn't save “" + payload.name + "” to the shared workspace — kept on this device instead.";
+          self.emit();
+          if (window.console) console.error("[First 90] addHire failed:", err);
+        });
+      } else {
+        optimistic._pending = false;
+        var hires = this.readLocal();
+        hires.unshift(optimistic);
+        this.writeLocal(hires);
+      }
+    },
+
+    setItemDone: function (hireId, itemId, done) {
+      var entry = { done: done, at: new Date().toISOString(), by: this.userId || null };
+      this.applyOptimistic(function (hires) {
+        return hires.map(function (h) {
+          if (h.id !== hireId) return h;
+          var next = Object.assign({}, h, { checklist: Object.assign({}, h.checklist) });
+          next.checklist[itemId] = entry;
+          return next;
+        });
+      });
+
+      if (this.mode === "db" && this.db) {
+        var patch = { checklist: {} };
+        patch.checklist[itemId] = entry;
+        var self = this;
+        this.db.doc("hires/" + hireId).update(patch).catch(function (err) {
+          self.syncError = "Couldn't sync that change — it may not be saved for others.";
+          self.emit();
+          if (window.console) console.error("[First 90] setItemDone failed:", err);
+        });
+      } else {
+        var hires = this.readLocal();
+        var hire = hires.filter(function (h) { return h.id === hireId; })[0];
+        if (hire) {
+          hire.checklist = hire.checklist || {};
+          hire.checklist[itemId] = entry;
+          this.writeLocal(hires);
+        }
+      }
+    },
+
+    removeHire: function (hireId) {
+      this.applyOptimistic(function (hires) { return hires.filter(function (h) { return h.id !== hireId; }); });
+      if (this.mode === "db" && this.db) {
+        this.db.doc("hires/" + hireId).delete().catch(function (err) {
+          if (window.console) console.error("[First 90] removeHire failed:", err);
+        });
+      } else {
+        var hires = this.readLocal().filter(function (h) { return h.id !== hireId; });
+        this.writeLocal(hires);
+      }
+    }
+  };
+
+  /* ============================ APP STATE ============================ */
+
+  var state = {
+    hires: [],
+    route: "overview", // "overview" | "detail"
+    selectedId: null,
+    mode: "manager",
+    showAddForm: false,
+    profiles: {}
+  };
+
+  Store.onChange(function (hires) {
+    state.hires = hires;
+    if (state.selectedId && !hires.some(function (h) { return h.id === state.selectedId; })) {
+      state.selectedId = null;
+      state.route = "overview";
+    }
+    resolveProfiles();
+    render();
+  });
+
+  function resolveProfiles() {
+    if (!window.claude || !window.claude.use) return;
+    var ids = [];
+    state.hires.forEach(function (h) {
+      Object.keys(h.checklist || {}).forEach(function (k) {
+        var by = h.checklist[k] && h.checklist[k].by;
+        if (by && ids.indexOf(by) === -1) ids.push(by);
+      });
+    });
+    if (!ids.length) return;
+    window.claude.use("user").then(function (u) {
+      if (!u) return;
+      return u.profiles(ids);
+    }).then(function (profiles) {
+      if (profiles) { state.profiles = profiles; render(); }
+    }).catch(function () {});
+  }
+
+  /* ============================ PROGRESS MATH ============================ */
+
+  function progressFor(hire, items) {
+    var checklist = hire.checklist || {};
+    var done = 0, overdue = 0, next = null;
+    var startTs = parseISO(hire.startDate);
+    var today = todayTs();
+    items.forEach(function (item) {
+      var entry = checklist[item.id];
+      var dueTs = addDaysTs(startTs, item.offsetDays);
+      if (entry && entry.done) { done++; return; }
+      if (dueTs < today) overdue++;
+      if (!next || dueTs < next.dueTs) next = { item: item, dueTs: dueTs };
+    });
+    return { done: done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0, overdue: overdue, next: next };
+  }
+
+  function itemStatus(dueTs, today, done) {
+    if (done) return "done";
+    if (dueTs < today) return "overdue";
+    if (dueTs - today <= 3 * 86400000) return "soon";
+    return "upcoming";
+  }
+  var STATUS_LABEL = { done: "Done", overdue: "Overdue", soon: "Due soon", upcoming: "Upcoming" };
+
+  /* ============================ RENDER ============================ */
+
+  var app = document.getElementById("app");
+
+  function render() {
+    app.innerHTML = state.route === "detail" && state.selectedId
+      ? renderDetail(state.hires.filter(function (h) { return h.id === state.selectedId; })[0])
+      : renderOverview();
+  }
+
+  function renderTopbar() {
+    var dbUp = Store.mode === "db";
+    var hasError = !!Store.syncError;
+    var pillClass = hasError ? " error" : (dbUp ? "" : " local");
+    var pillText = hasError ? Store.syncError : (dbUp ? "Synced with your team" : "Saved on this device only");
+    return (
+      '<div class="topbar">' +
+        '<div>' +
+          '<h1>The First 90</h1>' +
+          '<div class="tagline">A shared 90-day onboarding plan for managers and new hires.</div>' +
+        '</div>' +
+        '<span class="sync-pill"><span class="sync-dot' + pillClass + '"></span>' +
+          escapeHtml(pillText) +
+          (hasError ? '<button class="btn-ghost" data-action="dismiss-error" type="button" style="border:0;padding:0 0 0 6px;font-size:13px;line-height:1;cursor:pointer;">×</button>' : "") +
+        "</span>" +
+      "</div>"
+    );
+  }
+
+  function renderOverview() {
+    var cards = state.hires.map(function (hire) {
+      var mgr = progressFor(hire, MANAGER_ITEMS);
+      var nh = progressFor(hire, NEWHIRE_ITEMS);
+      var overdue = mgr.overdue + nh.overdue;
+      var startTs = parseISO(hire.startDate);
+      var dayNum = Math.floor((todayTs() - startTs) / 86400000) + 1;
+      var dayText = dayNum < 1 ? ("Starts " + fmtDateShort(startTs)) : dayNum > 90 ? "90 days complete" : ("Day " + dayNum + " of 90");
+      return (
+        '<div class="card hire-card" data-action="open-hire" data-id="' + escapeHtml(hire.id) + '" tabindex="0" role="button">' +
+          '<div>' +
+            '<div class="hire-name">' + escapeHtml(hire.name) + "</div>" +
+            '<div class="hire-meta">' + escapeHtml(hire.role || "New hire") + " · " + escapeHtml(hire.managerName || "no manager set") + "</div>" +
+          "</div>" +
+          '<div class="hire-flags">' +
+            '<span class="status-pill status-upcoming">' + escapeHtml(dayText) + "</span>" +
+            (overdue > 0 ? '<span class="status-pill status-overdue">' + overdue + " overdue</span>" : "") +
+          "</div>" +
+          '<div class="mini-bars">' +
+            renderMiniBar("Manager", mgr.pct, "") +
+            renderMiniBar("New hire", nh.pct, "newhire") +
+          "</div>" +
+        "</div>"
+      );
+    }).join("");
+
+    var list = state.hires.length
+      ? '<div class="hire-grid">' + cards + "</div>"
+      : '<div class="card empty-state">No one is onboarding yet. Add a new hire below to generate their plan.</div>';
+
+    return (
+      renderTopbar() +
+      '<div class="card pad">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+          '<h2 class="section-title" style="margin:0;">Onboarding in progress</h2>' +
+          '<button class="btn btn-primary" data-action="toggle-add-form" type="button">+ New hire</button>' +
+        "</div>" +
+        (state.showAddForm ? renderAddForm() : "") +
+      "</div>" +
+      list
+    );
+  }
+
+  function renderMiniBar(label, pct, cls) {
+    return (
+      '<div class="mini-bar-row">' +
+        '<span class="mini-bar-label">' + label + "</span>" +
+        '<span class="mini-bar-track"><span class="mini-bar-fill ' + cls + '" style="width:' + pct + '%;"></span></span>' +
+        '<span class="mini-bar-pct mono">' + pct + "%</span>" +
+      "</div>"
+    );
+  }
+
+  function renderAddForm() {
+    return (
+      '<form id="add-hire-form" style="margin-top:14px;display:flex;flex-direction:column;gap:12px;">' +
+        '<div class="form-grid">' +
+          '<label>Full name<input type="text" name="name" required placeholder="Jordan Rivera"></label>' +
+          '<label>Role / title<input type="text" name="role" placeholder="Product Designer"></label>' +
+          '<label>Manager<input type="text" name="managerName" placeholder="Alex Geer"></label>' +
+          '<label>Start date<input type="date" name="startDate" required></label>' +
+        "</div>" +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-primary" type="submit">Create plan</button>' +
+          '<button class="btn btn-ghost" type="button" data-action="toggle-add-form">Cancel</button>' +
+        "</div>" +
+      "</form>"
+    );
+  }
+
+  function renderDetail(hire) {
+    if (!hire) return renderOverview();
+    var mode = MODES[state.mode];
+    var startTs = parseISO(hire.startDate);
+    var today = todayTs();
+    var dayNum = Math.floor((today - startTs) / 86400000) + 1;
+    var dayText = dayNum < 1 ? ("Starts in " + Math.abs(dayNum - 1) + "d") : dayNum > 90 ? "Complete" : ("Day " + dayNum);
+
+    var mgr = progressFor(hire, MANAGER_ITEMS);
+    var nh = progressFor(hire, NEWHIRE_ITEMS);
+    var overdue = mgr.overdue + nh.overdue;
+    var current = progressFor(hire, mode.items);
+    var nextItem = current.next;
+
+    var stats = (
+      '<div class="stat-row">' +
+        '<div class="card stat-tile"><div class="stat-label">Timeline</div><div class="stat-value mono">' + dayText + '</div><div class="stat-sub">of 90 days</div></div>' +
+        '<div class="card stat-tile"><div class="stat-label">Manager tasks</div><div class="stat-value mono">' + mgr.done + "/" + mgr.total + '</div><div class="stat-sub">' + mgr.pct + '% complete</div></div>' +
+        '<div class="card stat-tile"><div class="stat-label">New hire tasks</div><div class="stat-value mono">' + nh.done + "/" + nh.total + '</div><div class="stat-sub">' + nh.pct + '% complete</div></div>' +
+        '<div class="card stat-tile"><div class="stat-label">Overdue</div><div class="stat-value mono' + (overdue > 0 ? " warn" : "") + '">' + overdue + '</div><div class="stat-sub">' + (nextItem ? "next due " + fmtDate(nextItem.dueTs) : "all caught up") + "</div></div>" +
+      "</div>"
+    );
+
+    var tabs = (
+      '<div class="tabs">' +
+        Object.keys(MODES).map(function (key) {
+          var p = progressFor(hire, MODES[key].items);
+          return '<button class="tab' + (state.mode === key ? " active" : "") + '" data-tab="' + key + '" type="button">' +
+            MODES[key].label + '<span class="tab-pct">' + p.pct + "%</span></button>";
+        }).join("") +
+      "</div>"
+    );
+
+    var phaseNav = (
+      '<div class="phase-nav">' +
+        mode.phases.map(function (p) {
+          var isCurrent = dayNum >= 1 && dayNum <= 90 && (dayNum - 1) >= p.from && (dayNum - 1) <= p.to;
+          return '<a class="phase-chip' + (isCurrent ? " current" : "") + '" href="#phase-' + p.id + '">' + p.label + "</a>";
+        }).join("") +
+      "</div>"
+    );
+
+    var sections = mode.phases.map(function (phase) {
+      var items = mode.items.filter(function (it) { return it.phase === phase.id; });
+      var isCurrent = dayNum >= 1 && dayNum <= 90 && (dayNum - 1) >= phase.from && (dayNum - 1) <= phase.to;
+      var doneCount = items.filter(function (it) { return hire.checklist && hire.checklist[it.id] && hire.checklist[it.id].done; }).length;
+      var rows = items.map(function (item) {
+        var entry = (hire.checklist || {})[item.id];
+        var done = !!(entry && entry.done);
+        var dueTs = addDaysTs(startTs, item.offsetDays);
+        var status = itemStatus(dueTs, today, done);
+        var byName = entry && entry.by && state.profiles[entry.by] ? state.profiles[entry.by].name : "";
+        return (
+          '<div class="item-row' + (done ? " done" : "") + '">' +
+            '<input class="item-check" type="checkbox" data-item="' + item.id + '"' + (done ? " checked" : "") + '>' +
+            '<div class="item-body">' +
+              '<div class="item-title">' + escapeHtml(item.title) + "</div>" +
+              '<div class="item-sub">' +
+                '<span class="status-pill status-' + status + '">' + STATUS_LABEL[status] + "</span>" +
+                '<span class="item-due">' + dayLabel(item.offsetDays) + " · " + fmtDate(dueTs) + "</span>" +
+                (done && byName ? '<span class="item-by">checked by ' + escapeHtml(byName) + "</span>" : "") +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+      }).join("");
+
+      return (
+        '<div class="phase-section' + (isCurrent ? " current" : "") + '" id="phase-' + phase.id + '">' +
+          '<div class="phase-head">' +
+            '<div class="phase-title-wrap"><span class="phase-title">' + phase.label + '</span><span class="phase-window">(' + dayLabel(phase.from) + (phase.to !== phase.from ? " – " + dayLabel(phase.to) : "") + ")</span></div>" +
+            '<span class="phase-count mono">' + doneCount + "/" + items.length + "</span>" +
+          "</div>" +
+          rows +
+        "</div>"
+      );
+    }).join("");
+
+    return (
+      renderTopbar() +
+      '<div>' +
+        '<button class="btn btn-ghost" data-action="back" type="button">← All new hires</button>' +
+      "</div>" +
+      '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
+        '<div class="detail-top">' +
+          '<div>' +
+            '<h2 class="detail-name">' + escapeHtml(hire.name) + "</h2>" +
+            '<div class="detail-meta">' + escapeHtml(hire.role || "New hire") + " · Manager: " + escapeHtml(hire.managerName || "—") + " · Starts " + fmtDateShort(startTs) + "</div>" +
+          "</div>" +
+          '<button class="btn btn-ghost btn-danger" data-action="remove-hire" data-id="' + escapeHtml(hire.id) + '" type="button">Remove</button>' +
+        "</div>" +
+        stats +
+      "</div>" +
+      '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
+        tabs +
+        phaseNav +
+        '<div style="display:flex;flex-direction:column;gap:20px;">' + sections + "</div>" +
+      "</div>"
+    );
+  }
+
+  /* ============================ EVENTS ============================ */
+
+  app.addEventListener("click", function (e) {
+    var openHire = e.target.closest('[data-action="open-hire"]');
+    if (openHire) { state.selectedId = openHire.getAttribute("data-id"); state.route = "detail"; state.mode = "manager"; render(); return; }
+
+    var back = e.target.closest('[data-action="back"]');
+    if (back) { state.route = "overview"; state.selectedId = null; render(); return; }
+
+    var toggleForm = e.target.closest('[data-action="toggle-add-form"]');
+    if (toggleForm) { state.showAddForm = !state.showAddForm; render(); return; }
+
+    var tab = e.target.closest("[data-tab]");
+    if (tab) { state.mode = tab.getAttribute("data-tab"); render(); return; }
+
+    var dismiss = e.target.closest('[data-action="dismiss-error"]');
+    if (dismiss) { Store.syncError = null; render(); return; }
+
+    var remove = e.target.closest('[data-action="remove-hire"]');
+    if (remove) {
+      var id = remove.getAttribute("data-id");
+      if (window.confirm("Remove this onboarding plan? This can't be undone.")) {
+        Store.removeHire(id);
+        state.route = "overview";
+        state.selectedId = null;
+        render();
+      }
+      return;
+    }
+  });
+
+  app.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      var openHire = e.target.closest('[data-action="open-hire"]');
+      if (openHire) { e.preventDefault(); openHire.click(); }
+    }
+  });
+
+  app.addEventListener("change", function (e) {
+    if (e.target.matches(".item-check")) {
+      Store.setItemDone(state.selectedId, e.target.getAttribute("data-item"), e.target.checked);
+    }
+  });
+
+  app.addEventListener("submit", function (e) {
+    if (e.target.id === "add-hire-form") {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      var payload = {
+        name: (fd.get("name") || "").toString().trim(),
+        role: (fd.get("role") || "").toString().trim(),
+        managerName: (fd.get("managerName") || "").toString().trim(),
+        startDate: (fd.get("startDate") || "").toString()
+      };
+      if (!payload.name || !payload.startDate) return;
+      Store.addHire(payload);
+      state.showAddForm = false;
+      render();
+    }
+  });
+
+  /* ============================ BOOT ============================ */
+
+  render();
+  Store.init();
+})();
+</script>

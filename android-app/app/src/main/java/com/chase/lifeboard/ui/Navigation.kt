@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.chase.lifeboard.LifeBoardApp
+import com.chase.lifeboard.OpenRequest
 import com.chase.lifeboard.ui.calendar.CalendarScreen
 import com.chase.lifeboard.ui.journal.JournalEditScreen
 import com.chase.lifeboard.ui.journal.JournalScreen
@@ -50,8 +51,8 @@ class Navigator(
     private val app: LifeBoardApp,
     private val scope: kotlinx.coroutines.CoroutineScope,
 ) {
-    fun openTask(id: Long) = nav.navigate("task/$id?isNew=false")
-    fun openEntry(id: Long) = nav.navigate("entry/$id?isNew=false")
+    fun openTask(id: Long, isNew: Boolean = false) = nav.navigate("task/$id?isNew=$isNew")
+    fun openEntry(id: Long, isNew: Boolean = false) = nav.navigate("entry/$id?isNew=$isNew")
 
     fun newTask(parentId: Long? = null, dueAt: Long? = null) = scope.launch {
         val id = app.tasks.create(parentId = parentId, dueAt = dueAt)
@@ -67,7 +68,7 @@ class Navigator(
 }
 
 @Composable
-fun LifeBoardNavHost(openTaskId: Long?, onOpenTaskHandled: () -> Unit) {
+fun LifeBoardNavHost(openRequest: OpenRequest?, onOpenHandled: () -> Unit) {
     val nav = rememberNavController()
     val app = lifeBoardApp()
     val scope = rememberCoroutineScope()
@@ -77,10 +78,13 @@ fun LifeBoardNavHost(openTaskId: Long?, onOpenTaskHandled: () -> Unit) {
     val showBar = Tab.entries.any { it.route == currentRoute }
 
     val graphReady = backStack != null
-    LaunchedEffect(openTaskId, graphReady) {
-        if (openTaskId != null && graphReady) {
-            navigator.openTask(openTaskId)
-            onOpenTaskHandled()
+    LaunchedEffect(openRequest, graphReady) {
+        if (openRequest != null && graphReady) {
+            when (openRequest.kind) {
+                OpenRequest.Kind.TASK -> navigator.openTask(openRequest.id, openRequest.isNew)
+                OpenRequest.Kind.ENTRY -> navigator.openEntry(openRequest.id, openRequest.isNew)
+            }
+            onOpenHandled()
         }
     }
 

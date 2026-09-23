@@ -9,6 +9,8 @@ class TaskRepository(
 ) {
     val allTasks: Flow<List<TaskEntity>> = dao.observeAll()
 
+    suspend fun allTasksOnce(): List<TaskEntity> = dao.all()
+
     fun observe(id: Long): Flow<TaskEntity?> = dao.observe(id)
 
     suspend fun get(id: Long): TaskEntity? = dao.get(id)

@@ -37,6 +37,17 @@ signed with the same key (`app/lifeboard.keystore`).
 - Entries for any date, with a title, text, a mood (😞 to 😄) and photos.
 - Search across all entries.
 
+**Home-screen widget**
+- Long-press your home screen, choose **Widgets**, find **LifeBoard tasks** and drag it onto the screen.
+  You can resize it.
+- It lists your unfinished tasks. Tasks with dates come first, soonest at the top, with overdue ones
+  in red. Tasks without dates follow, sorted by priority.
+- Tick a checkbox to complete a task. A repeating task moves to its next date instead.
+- Tap a task to open it in the app.
+- **+** opens a quick popup to add a task with a priority. **Date, alarm, subtasks…** opens the full editor.
+- The ✎ button opens a quick journal popup for today with a mood and text. **Add photos, title…** opens
+  the full entry.
+
 **Backup**
 - Open the ⋮ menu on any tab and choose **Back up to file…** to save everything
   (tasks, journal and photos) as a single `.zip` file. Save it to Google Drive or

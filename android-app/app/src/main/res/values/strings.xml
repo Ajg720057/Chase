@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">LifeBoard</string>
+    <string name="widget_name">LifeBoard tasks</string>
+    <string name="widget_description">Upcoming tasks, with quick add and journal buttons</string>
 </resources>

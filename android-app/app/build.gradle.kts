@@ -73,5 +73,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
     implementation(libs.reorderable)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

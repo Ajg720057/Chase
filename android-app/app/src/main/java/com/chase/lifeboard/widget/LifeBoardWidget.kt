@@ -1,6 +1,7 @@
 package com.chase.lifeboard.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -108,7 +109,7 @@ private fun WidgetContent(context: Context, tasks: List<WidgetTask>) {
                 modifier = GlanceModifier
                     .defaultWeight()
                     .padding(start = 4.dp)
-                    .clickable(actionStartActivity<MainActivity>()),
+                    .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
             )
             HeaderButton(
                 R.drawable.ic_widget_journal,

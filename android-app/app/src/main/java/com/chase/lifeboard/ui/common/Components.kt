@@ -163,8 +163,10 @@ fun PriorityChips(selected: Int, onSelect: (Int) -> Unit) {
                 selected = selected == p,
                 onClick = { onSelect(p) },
                 label = { Text(Priority.label(p)) },
-                leadingIcon = color?.let {
-                    { Box(Modifier.size(10.dp).background(it, CircleShape)) }
+                leadingIcon = if (color != null) {
+                    { Box(Modifier.size(10.dp).background(color, CircleShape)) }
+                } else {
+                    null
                 },
                 colors = if (color != null) {
                     FilterChipDefaults.filterChipColors(selectedContainerColor = color.copy(alpha = 0.22f))

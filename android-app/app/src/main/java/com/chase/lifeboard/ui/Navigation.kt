@@ -76,8 +76,9 @@ fun LifeBoardNavHost(openTaskId: Long?, onOpenTaskHandled: () -> Unit) {
     val currentRoute = backStack?.destination?.route
     val showBar = Tab.entries.any { it.route == currentRoute }
 
-    LaunchedEffect(openTaskId) {
-        if (openTaskId != null) {
+    val graphReady = backStack != null
+    LaunchedEffect(openTaskId, graphReady) {
+        if (openTaskId != null && graphReady) {
             navigator.openTask(openTaskId)
             onOpenTaskHandled()
         }

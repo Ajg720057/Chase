@@ -108,7 +108,7 @@ private fun WidgetContent(context: Context, tasks: List<WidgetTask>) {
                 modifier = GlanceModifier
                     .defaultWeight()
                     .padding(start = 4.dp)
-                    .clickable(actionStartActivity(MainActivity::class.java)),
+                    .clickable(actionStartActivity<MainActivity>()),
             )
             HeaderButton(
                 R.drawable.ic_widget_journal,

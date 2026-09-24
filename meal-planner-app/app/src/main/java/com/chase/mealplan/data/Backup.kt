@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import com.chase.mealplan.grocery.IngredientLine
+import com.chase.mealplan.grocery.StoreSection
+import com.chase.mealplan.grocery.StoreSections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -33,6 +35,10 @@ class Backup(
             put("plan", JSONArray(db.planDao().all().map { it.toJson() }))
             put("grocery", JSONArray(db.groceryDao().all().map { it.toJson() }))
             put("groceryWeek", settings.groceryWeek.value?.toString() ?: JSONObject.NULL)
+            put(
+                "sections",
+                JSONArray(db.sectionDao().all().map { JSONObject().put("key", it.key).put("section", it.section.name) }),
+            )
         }
         val out = context.contentResolver.openOutputStream(target) ?: error("Could not open file")
         ZipOutputStream(out.buffered()).use { zip ->
@@ -67,11 +73,18 @@ class Backup(
 
         db.withTransaction {
             db.groceryDao().deleteAll()
+            db.sectionDao().deleteAll()
             db.planDao().deleteAll()
             db.mealDao().deleteAll()
             db.mealDao().insertAll(data.getJSONArray("meals").objects().map { it.toMeal() })
             db.planDao().insertAll(data.getJSONArray("plan").objects().map { it.toEntry() })
             db.groceryDao().insertAll(data.optJSONArray("grocery")?.objects()?.map { it.toGrocery() }.orEmpty())
+            db.sectionDao().putAll(
+                data.optJSONArray("sections")?.objects()?.mapNotNull { o ->
+                    runCatching { SectionOverrideEntity(o.getString("key"), StoreSection.valueOf(o.getString("section"))) }
+                        .getOrNull()
+                }.orEmpty(),
+            )
         }
         settings.setGroceryWeek(
             data.optString("groceryWeek").takeIf { it.isNotEmpty() && it != "null" }
@@ -91,6 +104,9 @@ class Backup(
         put("supplies", JSONArray(supplies))
         put("photo", photo ?: JSONObject.NULL)
         put("createdAt", createdAt); put("updatedAt", updatedAt)
+        put("servings", servings ?: JSONObject.NULL)
+        put("calories", calories ?: JSONObject.NULL); put("protein", protein ?: JSONObject.NULL)
+        put("carbs", carbs ?: JSONObject.NULL); put("fat", fat ?: JSONObject.NULL)
     }
 
     private fun JSONObject.toMeal() = MealEntity(
@@ -100,21 +116,29 @@ class Backup(
         supplies = optJSONArray("supplies")?.let { converters.stringsFromJson(it.toString()) } ?: emptyList(),
         photo = if (isNull("photo")) null else optString("photo"),
         createdAt = optLong("createdAt"), updatedAt = optLong("updatedAt"),
+        servings = optIntOrNull("servings"),
+        calories = optDoubleOrNull("calories"), protein = optDoubleOrNull("protein"),
+        carbs = optDoubleOrNull("carbs"), fat = optDoubleOrNull("fat"),
     )
+
+    private fun JSONObject.optIntOrNull(key: String) = if (!has(key) || isNull(key)) null else getInt(key)
+    private fun JSONObject.optDoubleOrNull(key: String) = if (!has(key) || isNull(key)) null else getDouble(key)
 
     private fun PlanEntryEntity.toJson() = JSONObject().apply {
         put("id", id); put("date", date); put("slot", slot.name); put("mealId", mealId); put("sortOrder", sortOrder)
+        put("servings", servings ?: JSONObject.NULL)
     }
 
     private fun JSONObject.toEntry() = PlanEntryEntity(
         id = getLong("id"), date = getString("date"),
         slot = runCatching { Slot.valueOf(getString("slot")) }.getOrDefault(Slot.DINNER),
-        mealId = getLong("mealId"), sortOrder = optLong("sortOrder"),
+        mealId = getLong("mealId"), sortOrder = optLong("sortOrder"), servings = optIntOrNull("servings"),
     )
 
     private fun GroceryItemEntity.toJson() = JSONObject().apply {
         put("id", id); put("key", key); put("name", name); put("amount", amount); put("meals", meals)
         put("category", category.name); put("checked", checked); put("manual", manual); put("sortOrder", sortOrder)
+        put("section", section.name)
     }
 
     private fun JSONObject.toGrocery() = GroceryItemEntity(
@@ -122,5 +146,7 @@ class Backup(
         meals = optString("meals"),
         category = runCatching { GroceryCategory.valueOf(getString("category")) }.getOrDefault(GroceryCategory.EXTRA),
         checked = optBoolean("checked"), manual = optBoolean("manual"), sortOrder = optLong("sortOrder"),
+        section = runCatching { StoreSection.valueOf(getString("section")) }
+            .getOrDefault(StoreSections.classify(optString("name"))),
     )
 }

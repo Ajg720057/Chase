@@ -8,6 +8,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import androidx.room.TypeConverter
 import com.chase.mealplan.grocery.IngredientLine
+import com.chase.mealplan.grocery.NutritionFacts
+import com.chase.mealplan.grocery.StoreSection
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,7 +32,18 @@ data class MealEntity(
     val photo: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    /** How many servings the recipe as written makes. */
+    val servings: Int? = null,
+    /** Nutrition per serving typed in by hand (e.g. from the recipe website). */
+    val calories: Double? = null,
+    val protein: Double? = null,
+    val carbs: Double? = null,
+    val fat: Double? = null,
 )
+
+// Kept outside the entity classes so Room doesn't treat them as columns.
+val MealEntity.enteredNutrition: NutritionFacts?
+    get() = calories?.let { NutritionFacts(it, protein ?: 0.0, carbs ?: 0.0, fat ?: 0.0) }
 
 /** A meal placed on a day in a slot. [date] is ISO yyyy-MM-dd so it sorts as text. */
 @Entity(
@@ -51,12 +64,22 @@ data class PlanEntryEntity(
     val slot: Slot,
     val mealId: Long,
     val sortOrder: Long = System.currentTimeMillis(),
+    /** Servings being made that day, when different from what the recipe makes. */
+    val servings: Int? = null,
 )
 
 data class PlannedMeal(
     @Embedded val entry: PlanEntryEntity,
     @Relation(parentColumn = "mealId", entityColumn = "id") val meal: MealEntity,
 )
+
+/** How much to multiply the recipe by for this day. */
+val PlannedMeal.scale: Double
+    get() {
+        val made = entry.servings ?: return 1.0
+        val base = meal.servings ?: return 1.0
+        return made.toDouble() / base
+    }
 
 enum class GroceryCategory(val label: String) {
     INGREDIENT("Ingredients"),
@@ -78,6 +101,14 @@ data class GroceryItemEntity(
     /** Added by hand rather than generated from the plan. Kept when the list is rebuilt. */
     val manual: Boolean = false,
     val sortOrder: Long = 0,
+    val section: StoreSection = StoreSection.OTHER,
+)
+
+/** A store section you picked for an item, remembered for next time. */
+@Entity(tableName = "section_overrides")
+data class SectionOverrideEntity(
+    @PrimaryKey val key: String,
+    val section: StoreSection,
 )
 
 class Converters {
@@ -102,4 +133,19 @@ class Converters {
         val arr = JSONArray(json)
         (0 until arr.length()).map { arr.getString(it) }
     }.getOrDefault(emptyList())
+}
+
+/** Nutrition for one serving of a meal, and whether it was estimated or typed in. */
+data class MealNutrition(
+    /** Null when estimated but the recipe's serving count isn't set. */
+    val perServing: NutritionFacts?,
+    val estimated: Boolean,
+    val estimate: com.chase.mealplan.grocery.NutritionEstimate?,
+)
+
+fun MealEntity.nutrition(): MealNutrition {
+    enteredNutrition?.let { return MealNutrition(it, estimated = false, estimate = null) }
+    val est = com.chase.mealplan.grocery.Nutrition.estimate(ingredients)
+    val per = if (est.counted > 0 && est.total.calories > 0) servings?.takeIf { it > 0 }?.let { est.total / it.toDouble() } else null
+    return MealNutrition(per, estimated = true, estimate = est)
 }

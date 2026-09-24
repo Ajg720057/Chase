@@ -21,7 +21,9 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -55,6 +57,10 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.chase.mealplan.MealPlanApp
 import com.chase.mealplan.data.MealEntity
+import com.chase.mealplan.data.nutrition
+import com.chase.mealplan.grocery.Ingredients
+import com.chase.mealplan.grocery.NutritionFacts
+import kotlin.math.roundToInt
 import com.chase.mealplan.ui.AddToPlanDialog
 import com.chase.mealplan.ui.ConfirmDialog
 import com.chase.mealplan.ui.MainViewModel
@@ -149,6 +155,32 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                 Text(if (entry != null) "Also add to another day" else "Add to plan")
             }
 
+            // Servings: how many the recipe makes, and on a planned day how many you're making.
+            val made = entry?.servings ?: m.servings
+            val scale = if (entry?.servings != null && m.servings != null) entry.servings.toDouble() / m.servings else 1.0
+            if (m.servings == null) {
+                Muted("Tip: set how many servings the recipe makes (✎) to scale it up or down.")
+            } else if (entry != null && made != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                    Text("Making", style = MaterialTheme.typography.bodyLarge)
+                    IconButton(
+                        enabled = made > 1,
+                        onClick = { vm.setEntryServings(entry.id, (made - 1).takeIf { it != m.servings }) },
+                    ) { Icon(Icons.Filled.RemoveCircleOutline, "Fewer servings") }
+                    Text("$made", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { vm.setEntryServings(entry.id, (made + 1).takeIf { it != m.servings }) }) {
+                        Icon(Icons.Filled.AddCircleOutline, "More servings")
+                    }
+                    Text("servings", style = MaterialTheme.typography.bodyLarge)
+                }
+                Muted(
+                    if (scale == 1.0) "The recipe makes ${m.servings}."
+                    else "Amounts below and on the grocery list are scaled from the recipe's ${m.servings} servings.",
+                )
+            } else {
+                Muted("Makes ${m.servings} servings.")
+            }
+
             SectionHeader("Ingredients")
             if (m.ingredients.isEmpty()) {
                 Muted("No ingredients yet. Tap ✎ to add them.")
@@ -157,7 +189,7 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                     Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
                         Bullet()
                         if (line.amount.isNotBlank()) {
-                            Text(line.amount, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                            Text(Ingredients.scaleAmount(line.amount, scale), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
                             Spacer(Modifier.width(6.dp))
                         }
                         Text(line.name, style = MaterialTheme.typography.bodyLarge)
@@ -184,6 +216,25 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                 SelectionContainer {
                     Text(m.recipe, style = MaterialTheme.typography.bodyLarge)
                 }
+            }
+
+            SectionHeader("Nutrition per serving")
+            val nutrition = remember(m) { m.nutrition() }
+            val per = nutrition.perServing
+            when {
+                per != null -> {
+                    NutritionTiles(per)
+                    Muted(
+                        if (nutrition.estimated) "Estimated from the ingredients. Rough guide only."
+                        else "From the numbers you entered.",
+                    )
+                }
+                (nutrition.estimate?.total?.calories ?: 0.0) > 0.0 ->
+                    Muted("Whole recipe: ${nutrition.estimate!!.total.summary()}. Set the servings (✎) to see it per serving.")
+                else -> Muted("Add ingredients with amounts, or type in the numbers from the recipe (✎).")
+            }
+            nutrition.estimate?.missing?.takeIf { it.isNotEmpty() }?.let {
+                Muted("Not counted: ${it.joinToString(", ")}")
             }
             Spacer(Modifier.height(32.dp))
         }
@@ -223,6 +274,29 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
 }
 
 private val LOADING = MealEntity(id = -1, name = "")
+
+@Composable
+private fun NutritionTiles(n: NutritionFacts) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+        listOf(
+            "Calories" to "${n.calories.roundToInt()}",
+            "Protein" to "${n.protein.roundToInt()} g",
+            "Carbs" to "${n.carbs.roundToInt()} g",
+            "Fat" to "${n.fat.roundToInt()} g",
+        ).forEach { (label, value) ->
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Column(Modifier.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(label, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun Bullet() {

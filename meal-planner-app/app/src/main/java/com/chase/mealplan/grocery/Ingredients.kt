@@ -117,6 +117,45 @@ object Ingredients {
         return Quantity(value, unit)
     }
 
+    /** A leading number and whatever follows it: "2 large" -> (2.0, "large"). */
+    fun leadingNumber(amount: String): Pair<Double, String>? {
+        val s = amount.trim()
+        val (value, used) = readNumber(s) ?: return null
+        return value to s.substring(used).trim()
+    }
+
+    /**
+     * Multiplies an amount for a bigger or smaller batch: "2 cups" x 1.5 = "3 cups",
+     * "2 large" x 2 = "4 large". Amounts that aren't numbers get a note: "a pinch (x2)".
+     */
+    fun scaleAmount(amount: String, factor: Double): String {
+        if (abs(factor - 1.0) < 1e-9 || amount.isBlank()) return amount
+        parseQuantity(amount)?.let { return formatQuantity(Quantity(it.value * factor, it.unit)) }
+        leadingNumber(amount)?.let { (v, rest) ->
+            val isRange = rest.startsWith("-") || rest.startsWith("–") || rest.startsWith("to ")
+            if (!isRange) return "${formatNumber(v * factor)} $rest".trim()
+        }
+        return "${amount.trim()} (×${formatFactor(factor)})"
+    }
+
+    fun formatFactor(factor: Double): String {
+        val rounded = (factor * 100).roundToInt() / 100.0
+        return rounded.toString().trimEnd('0').trimEnd('.')
+    }
+
+    /**
+     * An ingredient name reduced to singular lowercase words, without notes in parentheses
+     * or after a comma: "Chicken Breasts (about 2), diced" -> [chicken, breast].
+     */
+    fun words(name: String): List<String> =
+        name.lowercase()
+            .replace(Regex("\\([^)]*\\)"), " ")
+            .substringBefore(',')
+            .replace('é', 'e').replace('ñ', 'n')
+            .split(Regex("[^a-z]+"))
+            .filter { it.isNotEmpty() }
+            .map { key(it) }
+
     /** Splits a pasted recipe line like "• 2 cups of flour, sifted" into amount and name. */
     fun parseLine(raw: String): IngredientLine {
         val s = raw.trim().trimStart('-', '*', '•', '▢', '☐', '□', '·', '–', ' ', '\t').trim()

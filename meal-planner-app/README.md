@@ -23,7 +23,9 @@ signed with the same key (`app/mealplanner.keystore`).
   From there you can **Swap** it for another meal, **Remove** it from that day, or add it to
   another day as well.
 - A slot can hold more than one item (for example a main and a side, or several snacks).
-- ⋮ menu: **Copy last week's meals**, **Clear this week**, **Week starts on Monday**, and backup.
+- Each day shows roughly how many calories one serving of each planned meal adds up to.
+- ⋮ menu: **Copy last week's meals**, **Clear this week**, **Week starts on Monday**,
+  **Weekly reminder**, and backup.
 
 **Adding a meal**
 - Type the meal's name. Saved meals that match appear underneath. Tap one and its
@@ -35,6 +37,12 @@ signed with the same key (`app/mealplanner.keystore`).
   **Paste a list** takes a whole ingredient list copied from a recipe website, one per line,
   and splits the amounts out for you.
 - **Supplies** are the things you need that aren't food: foil, skewers, paper plates.
+- **Recipe makes … servings** lets the app scale the recipe. On a planned day, open the meal
+  and use − / + to say how many you're making that day; the ingredient amounts and the grocery
+  list scale to match (for example 4 servings → 8 doubles everything).
+- **Nutrition per serving** is estimated from the ingredients using a built-in table of common
+  foods (calories, protein, carbs, fat). Anything it doesn't recognise is listed as "Not counted".
+  If the recipe website lists nutrition, type those numbers in and they're used instead.
 - Editing a saved meal updates it everywhere it's planned.
 
 **Meals tab**
@@ -47,12 +55,20 @@ signed with the same key (`app/mealplanner.keystore`).
 - The same ingredient from different meals is combined: 1 cup of rice for one dinner and
   2 cups for another shows as **Rice — 3 cups**, with the meals it's for underneath.
   A meal planned twice counts twice.
+- Items are grouped by store section (Produce, Meat & Seafood, Dairy & Eggs, Bakery, Pantry,
+  Canned & Jarred, Spices & Baking, Snacks, Frozen, Drinks, Household). If something lands in
+  the wrong section, use ⋮ on the item → **Move to aisle**; the app remembers it for next time.
 - Tap an item to check it off as it goes in the cart. Checked items move to the bottom
   of their section.
 - Add anything else (paper towels, coffee) with the box at the top.
 - **Rebuild** after changing the plan. It keeps items you added yourself, and when it's
   the same week, keeps your check marks too.
 - **Share** sends the unchecked items as text (to a text message, email or notes app).
+
+**Weekly reminder**
+- By default a notification on **Fridays at 1:00 PM** says how much of next week is planned.
+  Tapping it opens next week's plan. Change the day and time, or turn it off, from ⋮ →
+  **Weekly reminder** on the Plan tab. Allow notifications when Android asks.
 
 **Backup**
 - ⋮ on the Plan tab → **Back up to file…** saves everything (meals, photos, plans and

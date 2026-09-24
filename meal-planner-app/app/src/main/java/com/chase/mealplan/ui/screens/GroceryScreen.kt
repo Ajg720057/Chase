@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -32,6 +33,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,7 +58,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.chase.mealplan.data.GroceryCategory
+import com.chase.mealplan.grocery.StoreSection
 import com.chase.mealplan.data.GroceryItemEntity
 import com.chase.mealplan.data.Week
 import com.chase.mealplan.ui.ConfirmDialog
@@ -76,9 +78,10 @@ fun GroceryScreen(vm: MainViewModel) {
 
     val checkedCount = items.count { it.checked }
     val grouped = remember(items) {
-        GroceryCategory.entries.mapNotNull { cat ->
-            val inCat = items.filter { it.category == cat }
-            if (inCat.isEmpty()) null else cat to (inCat.filter { !it.checked } + inCat.filter { it.checked })
+        StoreSection.entries.mapNotNull { section ->
+            val inSection = items.filter { it.section == section }.sortedBy { it.name.lowercase() }
+            if (inSection.isEmpty()) null
+            else section to (inSection.filter { !it.checked } + inSection.filter { it.checked })
         }
     }
 
@@ -191,10 +194,10 @@ fun GroceryScreen(vm: MainViewModel) {
                 }
             }
 
-            grouped.forEach { (category, list) ->
-                item(key = "header-${category.name}") {
+            grouped.forEach { (section, list) ->
+                item(key = "header-${section.name}") {
                     Text(
-                        category.label,
+                        "${section.label}  ·  ${list.count { !it.checked }}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -206,6 +209,7 @@ fun GroceryScreen(vm: MainViewModel) {
                         item = item,
                         onToggle = { vm.setChecked(item, !item.checked) },
                         onDelete = { vm.deleteGroceryItem(item) },
+                        onMove = { vm.setSection(item, it) },
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -229,8 +233,10 @@ private fun GroceryRow(
     item: GroceryItemEntity,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    onMove: (StoreSection) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier
             .fillMaxWidth()
@@ -265,9 +271,30 @@ private fun GroceryRow(
                 )
             }
         }
-        if (item.manual) {
-            Box {
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Close, "Remove ${item.name}") }
+        Box {
+            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, "Options for ${item.name}") }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                Text(
+                    "Move to aisle",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                StoreSection.entries.forEach { s ->
+                    DropdownMenuItem(
+                        text = { Text(s.label) },
+                        trailingIcon = { if (s == item.section) Icon(Icons.Filled.Check, null) },
+                        onClick = { menuOpen = false; if (s != item.section) onMove(s) },
+                    )
+                }
+                if (item.manual) {
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Remove from list") },
+                        leadingIcon = { Icon(Icons.Filled.Close, null) },
+                        onClick = { menuOpen = false; onDelete() },
+                    )
+                }
             }
         }
     }
@@ -278,10 +305,10 @@ private fun share(context: android.content.Context, items: List<GroceryItemEntit
         append("Grocery list")
         week?.let { append(" (${it.label})") }
         append("\n")
-        GroceryCategory.entries.forEach { cat ->
-            val open = items.filter { it.category == cat && !it.checked }
+        StoreSection.entries.forEach { section ->
+            val open = items.filter { it.section == section && !it.checked }.sortedBy { it.name.lowercase() }
             if (open.isNotEmpty()) {
-                append("\n${cat.label}\n")
+                append("\n${section.label}\n")
                 open.forEach { i ->
                     append("☐ ${i.name}")
                     if (i.amount.isNotBlank()) append(" — ${i.amount}")

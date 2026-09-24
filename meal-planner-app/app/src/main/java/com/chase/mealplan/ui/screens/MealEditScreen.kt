@@ -49,6 +49,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,9 +63,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.chase.mealplan.MealPlanApp
+import com.chase.mealplan.grocery.IngredientLine
+import com.chase.mealplan.grocery.Nutrition
 import com.chase.mealplan.ui.ConfirmDialog
 import com.chase.mealplan.ui.MealThumb
 import com.chase.mealplan.ui.Navigator
@@ -195,6 +199,21 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
                 )
             }
 
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                Text("Recipe makes", style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.width(10.dp))
+                OutlinedTextField(
+                    value = vm.servings,
+                    onValueChange = { v -> vm.servings = v.filter { it.isDigit() }.take(3); vm.touch() },
+                    placeholder = { Text("4") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    modifier = Modifier.width(80.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text("servings", style = MaterialTheme.typography.bodyLarge)
+            }
+
             SectionHeader("Photo")
             PhotoPicker(
                 photoFile = vm.photo?.let { app.photos.file(it) },
@@ -289,6 +308,8 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            NutritionEditor(vm)
 
             Spacer(Modifier.height(20.dp))
             Button(
@@ -403,5 +424,63 @@ private fun PasteIngredientsDialog(onAdd: (String) -> Unit, onDismiss: () -> Uni
             TextButton(enabled = text.isNotBlank(), onClick = { onAdd(text); onDismiss() }) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun NutritionEditor(vm: MealEditViewModel) {
+    val estimate by remember {
+        derivedStateOf {
+            Nutrition.estimate(vm.ingredients.map { IngredientLine(it.amount, it.name) })
+        }
+    }
+    val servings = vm.servings.toIntOrNull()?.takeIf { it > 0 }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+
+    SectionHeader("Nutrition per serving")
+    when {
+        estimate.counted == 0 || estimate.total.calories <= 0.0 ->
+            Text("Add ingredients with amounts to get an estimate.", style = MaterialTheme.typography.bodySmall, color = muted)
+        servings == null ->
+            Text(
+                "Whole recipe: ${estimate.total.summary()}. Fill in \"Recipe makes … servings\" to see it per serving.",
+                style = MaterialTheme.typography.bodySmall, color = muted,
+            )
+        else ->
+            Text(
+                "Estimated from ingredients: ${(estimate.total / servings.toDouble()).summary()}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+    }
+    if (estimate.missing.isNotEmpty()) {
+        Text(
+            "Not counted: ${estimate.missing.joinToString(", ")}",
+            style = MaterialTheme.typography.bodySmall, color = muted, modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+    Text(
+        "Or type in the numbers from the recipe (they're used instead of the estimate):",
+        style = MaterialTheme.typography.bodySmall, color = muted, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField("Calories", vm.calories, { vm.calories = it; vm.touch() }, Modifier.weight(1f))
+        NumberField("Protein (g)", vm.protein, { vm.protein = it; vm.touch() }, Modifier.weight(1f))
+    }
+    Spacer(Modifier.height(6.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField("Carbs (g)", vm.carbs, { vm.carbs = it; vm.touch() }, Modifier.weight(1f))
+        NumberField("Fat (g)", vm.fat, { vm.fat = it; vm.touch() }, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun NumberField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { v -> onChange(v.filter { it.isDigit() || it == '.' }.take(6)) },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+        modifier = modifier,
     )
 }

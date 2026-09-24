@@ -68,7 +68,7 @@ class Navigator(private val nav: NavHostController) {
 }
 
 @Composable
-fun MealPlanNavHost() {
+fun MealPlanNavHost(showNextWeek: Int = 0) {
     val app = LocalContext.current.applicationContext as MealPlanApp
     val vm: MainViewModel = viewModel(factory = viewModelFactory { initializer { MainViewModel(app) } })
     val nav = rememberNavController()
@@ -79,6 +79,19 @@ fun MealPlanNavHost() {
 
     LaunchedEffect(vm) {
         vm.messages.collect { snackbar.showSnackbar(it) }
+    }
+    // Opened from the weekly reminder: show next week's plan.
+    LaunchedEffect(showNextWeek) {
+        if (showNextWeek > 0) {
+            vm.showNextWeek()
+            // On a cold start the graph may not be set yet, but then we're on the plan already.
+            runCatching {
+                nav.navigate(Tab.PLAN.route) {
+                    popUpTo(nav.graph.findStartDestination().id)
+                    launchSingleTop = true
+                }
+            }
+        }
     }
 
     Scaffold(

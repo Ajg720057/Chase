@@ -49,6 +49,12 @@ class MealEditViewModel(
     var recipe by mutableStateOf("")
     var photo by mutableStateOf<String?>(null)
         private set
+    /** Text fields, so a half-typed number doesn't fight the keyboard. */
+    var servings by mutableStateOf("")
+    var calories by mutableStateOf("")
+    var protein by mutableStateOf("")
+    var carbs by mutableStateOf("")
+    var fat by mutableStateOf("")
     val ingredients = mutableStateListOf<IngredientRow>()
     val supplies = mutableStateListOf<SupplyRow>()
 
@@ -87,6 +93,11 @@ class MealEditViewModel(
         name = meal.name
         recipe = meal.recipe
         photo = meal.photo
+        servings = meal.servings?.toString().orEmpty()
+        calories = meal.calories.asText()
+        protein = meal.protein.asText()
+        carbs = meal.carbs.asText()
+        fat = meal.fat.asText()
         ingredients.clear()
         meal.ingredients.forEach { ingredients += IngredientRow(nextRowId++, it.amount, it.name) }
         if (ingredients.isEmpty()) ingredients += IngredientRow(nextRowId++)
@@ -132,6 +143,11 @@ class MealEditViewModel(
             ingredients = ingredients.map { IngredientLine(it.amount, it.name) },
             supplies = supplies.map { it.text },
             photo = photo,
+            servings = servings.trim().toIntOrNull()?.takeIf { it > 0 },
+            calories = calories.asNumber(),
+            protein = protein.asNumber().takeIf { calories.asNumber() != null },
+            carbs = carbs.asNumber().takeIf { calories.asNumber() != null },
+            fat = fat.asNumber().takeIf { calories.asNumber() != null },
         )
         val picked = pickedName
         val mealId = if (picked != null && !picked.equals(name.trim(), ignoreCase = true)) null else loadedMealId
@@ -140,3 +156,8 @@ class MealEditViewModel(
         onSaved()
     }
 }
+
+private fun Double?.asText(): String =
+    this?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }.orEmpty()
+
+private fun String.asNumber(): Double? = trim().replace(',', '.').toDoubleOrNull()?.takeIf { it >= 0 }

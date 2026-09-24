@@ -6,6 +6,7 @@ import com.chase.mealplan.data.Backup
 import com.chase.mealplan.data.MealRepository
 import com.chase.mealplan.data.PhotoStore
 import com.chase.mealplan.data.Settings
+import com.chase.mealplan.reminder.Reminders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +23,11 @@ class MealPlanApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Reminders.createChannel(this)
+        // Re-arms the weekly reminder now and whenever its day or time is changed.
+        appScope.launch {
+            settings.reminder.collect { Reminders.schedule(this@MealPlanApp, it) }
+        }
         appScope.launch { runCatching { repo.cleanUpPhotos() } }
     }
 }

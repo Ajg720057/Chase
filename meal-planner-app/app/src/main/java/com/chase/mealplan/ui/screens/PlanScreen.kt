@@ -23,11 +23,25 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Today
+import android.Manifest
+import android.app.TimePickerDialog
+import android.os.Build
+import com.chase.mealplan.reminder.Reminders
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.ui.platform.LocalContext
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -54,7 +68,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.chase.mealplan.data.PlannedMeal
+import com.chase.mealplan.data.ReminderSettings
 import com.chase.mealplan.data.Slot
+import com.chase.mealplan.data.nutrition
+import kotlin.math.roundToInt
 import com.chase.mealplan.ui.ConfirmDialog
 import com.chase.mealplan.ui.MainViewModel
 import com.chase.mealplan.ui.MealThumb
@@ -74,6 +91,10 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
     var menuOpen by remember { mutableStateOf(false) }
     var confirmCopy by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var reminderOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val reminder by vm.reminder.collectAsState()
     val today = LocalDate.now()
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -110,6 +131,20 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
                             text = { Text("Week starts on Monday") },
                             trailingIcon = { Checkbox(checked = startsMonday, onCheckedChange = null) },
                             onClick = { vm.setWeekStartsMonday(!startsMonday) },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("Weekly reminder")
+                                    Text(
+                                        if (reminder.enabled) reminder.label else "Off",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Filled.Notifications, null) },
+                            onClick = { menuOpen = false; reminderOpen = true },
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
@@ -170,6 +205,18 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
             onDismiss = { confirmClear = false },
         )
     }
+    if (reminderOpen) {
+        ReminderDialog(
+            current = reminder,
+            onSave = {
+                vm.setReminder(it)
+                if (it.enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Reminders.canNotify(context)) {
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+            onDismiss = { reminderOpen = false },
+        )
+    }
     restoreUri?.let { uri ->
         ConfirmDialog(
             title = "Restore backup?",
@@ -211,6 +258,18 @@ private fun DayCard(
                 if (isToday) {
                     Spacer(Modifier.width(8.dp))
                     Text("Today", style = MaterialTheme.typography.labelMedium, color = colors.primary, fontWeight = FontWeight.Bold)
+                }
+                // One serving of each planned meal that has nutrition info.
+                val calories = remember(slots) {
+                    slots.values.flatten().mapNotNull { it.meal.nutrition().perServing?.calories }
+                }
+                if (calories.isNotEmpty()) {
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "≈ ${"%,d".format(calories.sum().roundToInt())} cal",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.onSurfaceVariant,
+                    )
                 }
             }
             Spacer(Modifier.height(4.dp))
@@ -273,4 +332,57 @@ private fun SlotRow(slot: Slot, meals: List<PlannedMeal>, onOpen: (PlannedMeal) 
             }
         }
     }
+}
+
+@Composable
+private fun ReminderDialog(current: ReminderSettings, onSave: (ReminderSettings) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var draft by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Weekly reminder") },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Remind me to plan next week", modifier = Modifier.weight(1f))
+                    Switch(checked = draft.enabled, onCheckedChange = { draft = draft.copy(enabled = it) })
+                }
+                if (draft.enabled) {
+                    Spacer(Modifier.height(8.dp))
+                    DayOfWeek.entries.chunked(4).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { d ->
+                                FilterChip(
+                                    selected = d == draft.day,
+                                    onClick = { draft = draft.copy(day = d) },
+                                    label = { Text(d.getDisplayName(TextStyle.SHORT, Locale.getDefault())) },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = {
+                        TimePickerDialog(
+                            context,
+                            { _, h, m -> draft = draft.copy(minuteOfDay = h * 60 + m) },
+                            draft.minuteOfDay / 60, draft.minuteOfDay % 60,
+                            android.text.format.DateFormat.is24HourFormat(context),
+                        ).show()
+                    }) {
+                        Icon(Icons.Filled.Schedule, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(draft.time.format(DateTimeFormatter.ofPattern("h:mm a")))
+                    }
+                    Text(
+                        draft.label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(draft); onDismiss() }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

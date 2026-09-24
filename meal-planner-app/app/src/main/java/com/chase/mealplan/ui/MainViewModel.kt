@@ -7,6 +7,8 @@ import com.chase.mealplan.MealPlanApp
 import com.chase.mealplan.data.GroceryItemEntity
 import com.chase.mealplan.data.MealEntity
 import com.chase.mealplan.data.PlannedMeal
+import com.chase.mealplan.data.ReminderSettings
+import com.chase.mealplan.grocery.StoreSection
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.Week
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,6 +66,14 @@ class MainViewModel(private val app: MealPlanApp) : ViewModel() {
     fun previousWeek() { weekOffset.value -= 1 }
     fun nextWeek() { weekOffset.value += 1 }
     fun thisWeek() { weekOffset.value = 0 }
+    fun showNextWeek() { weekOffset.value = 1 }
+
+    val reminder: StateFlow<ReminderSettings> = settings.reminder
+    fun setReminder(value: ReminderSettings) = settings.setReminder(value)
+
+    fun setEntryServings(entryId: Long, servings: Int?) = viewModelScope.launch { repo.setEntryServings(entryId, servings) }
+
+    fun setSection(item: GroceryItemEntity, section: StoreSection) = viewModelScope.launch { repo.setSection(item, section) }
 
     fun setWeekStartsMonday(value: Boolean) = settings.setWeekStartsMonday(value)
 

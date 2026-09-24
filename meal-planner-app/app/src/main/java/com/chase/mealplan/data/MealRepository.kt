@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.chase.mealplan.grocery.IngredientLine
 import com.chase.mealplan.grocery.IngredientUse
 import com.chase.mealplan.grocery.Ingredients
+import com.chase.mealplan.grocery.StoreSection
+import com.chase.mealplan.grocery.StoreSections
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -14,9 +16,16 @@ data class MealDraft(
     val ingredients: List<IngredientLine>,
     val supplies: List<String>,
     val photo: String?,
+    val servings: Int? = null,
+    /** Typed-in nutrition per serving; all null to estimate from ingredients. */
+    val calories: Double? = null,
+    val protein: Double? = null,
+    val carbs: Double? = null,
+    val fat: Double? = null,
 ) {
     val hasContent: Boolean
-        get() = recipe.isNotBlank() || ingredients.isNotEmpty() || supplies.isNotEmpty() || photo != null
+        get() = recipe.isNotBlank() || ingredients.isNotEmpty() || supplies.isNotEmpty() || photo != null ||
+            servings != null || calories != null
 }
 
 class MealRepository(
@@ -27,6 +36,7 @@ class MealRepository(
     private val meals = db.mealDao()
     private val plan = db.planDao()
     private val grocery = db.groceryDao()
+    private val sections = db.sectionDao()
 
     val allMeals: Flow<List<MealEntity>> = meals.observeAll()
     val groceryItems: Flow<List<GroceryItemEntity>> = grocery.observeAll()
@@ -74,12 +84,7 @@ class MealRepository(
                 meals.update(current.applying(clean, keepPhoto = false))
                 current.id
             }
-            else -> meals.insert(
-                MealEntity(
-                    name = name, recipe = clean.recipe, ingredients = clean.ingredients,
-                    supplies = clean.supplies, photo = clean.photo,
-                ),
-            )
+            else -> meals.insert(MealEntity(name = name).applying(clean, keepPhoto = false))
         }
 
         when {
@@ -92,6 +97,7 @@ class MealRepository(
     private fun MealEntity.applying(d: MealDraft, keepPhoto: Boolean) = copy(
         name = d.name, recipe = d.recipe, ingredients = d.ingredients, supplies = d.supplies,
         photo = if (keepPhoto) photo else d.photo, updatedAt = System.currentTimeMillis(),
+        servings = d.servings, calories = d.calories, protein = d.protein, carbs = d.carbs, fat = d.fat,
     )
 
     suspend fun deleteMeal(meal: MealEntity) {
@@ -104,6 +110,19 @@ class MealRepository(
     }
 
     suspend fun removeFromPlan(entryId: Long) = plan.delete(entryId)
+
+    suspend fun setEntryServings(entryId: Long, servings: Int?) = plan.setServings(entryId, servings)
+
+    /** Moves an item to another store section, and remembers that for next time. */
+    suspend fun setSection(item: GroceryItemEntity, section: StoreSection) = db.withTransaction {
+        sections.put(SectionOverrideEntity(item.key, section))
+        grocery.setSection(item.key, section)
+    }
+
+    private suspend fun sectionFinder(): (String, Boolean) -> StoreSection {
+        val overrides = sections.all().associate { it.key to it.section }
+        return { name, isSupply -> overrides[Ingredients.key(name)] ?: StoreSections.classify(name, isSupply) }
+    }
 
     suspend fun clearWeek(week: Week) = plan.deleteRange(week.start.toString(), week.end.toString())
 
@@ -127,7 +146,9 @@ class MealRepository(
     suspend fun buildGroceryList(week: Week): Int = db.withTransaction {
         val planned = plan.range(week.start.toString(), week.end.toString())
         val ingredientItems = Ingredients.aggregate(
-            planned.flatMap { p -> p.meal.ingredients.map { IngredientUse(it.amount, it.name, p.meal.name) } },
+            planned.flatMap { p ->
+                p.meal.ingredients.map { IngredientUse(Ingredients.scaleAmount(it.amount, p.scale), it.name, p.meal.name) }
+            },
         )
         val supplyItems = Ingredients.aggregate(
             planned.flatMap { p -> p.meal.supplies.map { IngredientUse("", it, p.meal.name) } },
@@ -143,9 +164,11 @@ class MealRepository(
         if (!sameWeek) grocery.deleteChecked()
 
         var order = 0L
+        val sectionOf = sectionFinder()
         fun toEntity(cat: GroceryCategory, item: com.chase.mealplan.grocery.AggregatedItem) = GroceryItemEntity(
             key = item.key, name = item.name, amount = item.amount, meals = item.meals.joinToString(", "),
             category = cat, checked = (cat to item.key) in checkedKeys, sortOrder = order++,
+            section = sectionOf(item.name, cat == GroceryCategory.SUPPLY),
         )
         grocery.insertAll(
             ingredientItems.sortedBy { it.name.lowercase() }.map { toEntity(GroceryCategory.INGREDIENT, it) } +
@@ -164,6 +187,7 @@ class MealRepository(
             GroceryItemEntity(
                 key = Ingredients.key(itemName), name = itemName, amount = parsed.amount,
                 category = GroceryCategory.EXTRA, manual = true, sortOrder = grocery.maxOrder() + 1,
+                section = sectionFinder()(itemName, false),
             ),
         )
     }

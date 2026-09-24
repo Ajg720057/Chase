@@ -51,6 +51,9 @@ android {
     lint {
         checkReleaseBuilds = false
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 ksp {
@@ -75,4 +78,6 @@ dependencies {
     implementation(libs.coil.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

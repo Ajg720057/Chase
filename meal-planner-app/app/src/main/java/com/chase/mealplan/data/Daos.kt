@@ -3,6 +3,7 @@ package com.chase.mealplan.data
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
@@ -66,6 +67,9 @@ interface PlanDao {
     @Insert
     suspend fun insertAll(entries: List<PlanEntryEntity>)
 
+    @Query("UPDATE plan_entries SET servings = :servings WHERE id = :id")
+    suspend fun setServings(id: Long, servings: Int?)
+
     @Query("UPDATE plan_entries SET mealId = :mealId WHERE id = :id")
     suspend fun setMeal(id: Long, mealId: Long)
 
@@ -99,6 +103,9 @@ interface GroceryDao {
     @Query("UPDATE grocery_items SET checked = :checked WHERE id = :id")
     suspend fun setChecked(id: Long, checked: Boolean)
 
+    @Query("UPDATE grocery_items SET section = :section WHERE `key` = :key")
+    suspend fun setSection(key: String, section: com.chase.mealplan.grocery.StoreSection)
+
     @Query("DELETE FROM grocery_items WHERE id = :id")
     suspend fun delete(id: Long)
 
@@ -109,5 +116,20 @@ interface GroceryDao {
     suspend fun deleteGenerated()
 
     @Query("DELETE FROM grocery_items")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface SectionDao {
+    @Query("SELECT * FROM section_overrides")
+    suspend fun all(): List<SectionOverrideEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(override: SectionOverrideEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putAll(overrides: List<SectionOverrideEntity>)
+
+    @Query("DELETE FROM section_overrides")
     suspend fun deleteAll()
 }

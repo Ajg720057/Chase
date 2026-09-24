@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- calendar page -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,34h40a4,4 0,0 1,4 4v36a4,4 0,0 1,-4 4h-40a4,4 0,0 1,-4 -4v-36a4,4 0,0 1,4 -4z" />
+    <!-- header band -->
+    <path
+        android:fillColor="#80CBC4"
+        android:pathData="M34,34h40a4,4 0,0 1,4 4v6h-48v-6a4,4 0,0 1,4 -4z" />
+    <!-- binder rings -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M43,29v8M65,29v8" />
+    <!-- day blocks -->
+    <path
+        android:fillColor="#B2DFDB"
+        android:pathData="M37,50h8v6h-8zM50,50h8v6h-8zM63,50h8v6h-8zM37,61h8v6h-8z" />
+    <!-- check on the current day -->
+    <path
+        android:strokeColor="#00796B"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M51,65l4,4l9,-10" />
+</vector>

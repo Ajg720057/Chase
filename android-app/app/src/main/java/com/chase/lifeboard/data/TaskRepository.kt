@@ -20,10 +20,11 @@ class TaskRepository(
         parentId: Long? = null,
         title: String = "",
         dueAt: Long? = null,
+        notes: String = "",
     ): Long {
         val order = if (parentId == null) dao.minSortOrder(null) - 1 else dao.maxSortOrder(parentId) + 1
         return dao.insert(
-            TaskEntity(parentId = parentId, title = title, dueAt = dueAt, sortOrder = order),
+            TaskEntity(parentId = parentId, title = title, notes = notes, dueAt = dueAt, sortOrder = order),
         )
     }
 

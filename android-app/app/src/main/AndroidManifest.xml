@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
+    <!-- Lets LifeBoard check PlanBoard's signature when it asks to add tasks. -->
+    <queries>
+        <package android:name="com.chase.planboard" />
+    </queries>
+
     <application
         android:name=".LifeBoardApp"
         android:allowBackup="true"
@@ -47,6 +52,12 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/lifeboard_widget_info" />
         </receiver>
+
+        <!-- PlanBoard adds and syncs plan to-dos here; the provider checks the caller's signature. -->
+        <provider
+            android:name=".link.TaskProvider"
+            android:authorities="com.chase.lifeboard.tasks"
+            android:exported="true" />
 
         <receiver
             android:name=".alarm.AlarmReceiver"

@@ -48,6 +48,12 @@ signed with the same key (`app/lifeboard.keystore`).
 - The ✎ button opens a quick journal popup for today with a mood and text. **Add photos, title…** opens
   the full entry.
 
+**PlanBoard link**
+- Plan to-dos from the PlanBoard app can be sent here. They show up as tasks with
+  "From plan: …" in their notes.
+- Checking one off here checks it off in PlanBoard too, and the other way round.
+- Only PlanBoard (identified by its signing key) can add or read tasks this way.
+
 **Backup**
 - Open the ⋮ menu on any tab and choose **Back up to file…** to save everything
   (tasks, journal and photos) as a single `.zip` file. Save it to Google Drive or

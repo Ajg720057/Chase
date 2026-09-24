@@ -1,0 +1,56 @@
+name: Build Workout Log APK
+
+on:
+  push:
+    branches: [main, master, claude/workout-logging-android-app-n9pper]
+    paths:
+      - "workout-app/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workout-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testReleaseUnitTest --stacktrace
+
+      - name: Build APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk WorkoutLog.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorkoutLog-apk
+          path: workout-app/WorkoutLog.apk
+
+      - name: Publish as the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete workout-app-latest --yes --cleanup-tag || true
+          gh release create workout-app-latest WorkoutLog.apk \
+            --target "${{ github.sha }}" \
+            --title "Workout Log — latest build" \
+            --notes "Built from ${{ github.sha }}. On your phone, download WorkoutLog.apk below and open it to install (allow installs from your browser if asked)."

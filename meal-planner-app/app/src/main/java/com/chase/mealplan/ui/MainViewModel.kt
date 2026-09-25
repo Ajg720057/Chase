@@ -11,7 +11,12 @@ import com.chase.mealplan.data.ReminderSettings
 import com.chase.mealplan.grocery.StoreSection
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.Week
+import com.chase.mealplan.pdf.MenuPdf
+import com.chase.mealplan.pdf.PdfFiles
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -107,6 +112,18 @@ class MainViewModel(private val app: MealPlanApp) : ViewModel() {
     fun deleteGroceryItem(item: GroceryItemEntity) = viewModelScope.launch { repo.deleteGroceryItem(item.id) }
     fun clearChecked() = viewModelScope.launch { repo.clearChecked() }
     fun clearGrocery() = viewModelScope.launch { repo.clearGrocery() }
+
+    fun notify(message: String) { _messages.tryEmit(message) }
+
+    /** Builds the menu PDF for the week on screen. Null when nothing is planned that week. */
+    suspend fun buildMenuPdf(includeRecipes: Boolean, includePhotos: Boolean): File? = withContext(Dispatchers.IO) {
+        val w = week.value
+        val planned = repo.weekPlan(w)
+        if (planned.isEmpty()) return@withContext null
+        val file = PdfFiles.menuFile(app, "Weekly menu ${w.start}.pdf")
+        MenuPdf(app.photos).write(w, planned, includeRecipes, includePhotos, file)
+        file
+    }
 
     fun exportBackup(uri: Uri) = viewModelScope.launch {
         val result = runCatching { app.backup.export(uri) }

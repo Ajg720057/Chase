@@ -23,12 +23,23 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Today
 import android.Manifest
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.rememberCoroutineScope
+import com.chase.mealplan.pdf.PdfFiles
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.app.TimePickerDialog
 import android.os.Build
 import com.chase.mealplan.reminder.Reminders
@@ -92,6 +103,7 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
     var confirmCopy by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var reminderOpen by remember { mutableStateOf(false) }
+    var pdfOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val reminder by vm.reminder.collectAsState()
@@ -114,6 +126,7 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
                     if (!isThisWeek) {
                         IconButton(onClick = vm::thisWeek) { Icon(Icons.Filled.Today, "Go to this week") }
                     }
+                    IconButton(onClick = { pdfOpen = true }) { Icon(Icons.Filled.PictureAsPdf, "Weekly menu PDF") }
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, "More") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
@@ -204,6 +217,9 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
             onConfirm = { vm.clearWeek() },
             onDismiss = { confirmClear = false },
         )
+    }
+    if (pdfOpen) {
+        MenuPdfDialog(vm = vm, weekLabel = week.label, onDismiss = { pdfOpen = false })
     }
     if (reminderOpen) {
         ReminderDialog(
@@ -384,5 +400,108 @@ private fun ReminderDialog(current: ReminderSettings, onSave: (ReminderSettings)
         },
         confirmButton = { TextButton(onClick = { onSave(draft); onDismiss() }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private enum class PdfAction { PRINT, SHARE, SAVE }
+
+@Composable
+private fun MenuPdfDialog(vm: MainViewModel, weekLabel: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var includeRecipes by remember { mutableStateOf(true) }
+    var includePhotos by remember { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var toSave by remember { mutableStateOf<java.io.File?>(null) }
+
+    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        val file = toSave
+        if (uri != null && file != null) {
+            scope.launch {
+                val ok = runCatching { withContext(Dispatchers.IO) { PdfFiles.copyTo(context, file, uri) } }.isSuccess
+                vm.notify(if (ok) "Menu saved" else "Couldn't save the menu")
+            }
+        }
+        onDismiss()
+    }
+
+    fun run(action: PdfAction) {
+        busy = true
+        scope.launch {
+            val file = runCatching { vm.buildMenuPdf(includeRecipes, includePhotos) }.getOrElse {
+                vm.notify("Couldn't make the PDF: ${it.message}")
+                null
+            }
+            busy = false
+            if (file == null) {
+                vm.notify("Nothing is planned for $weekLabel yet")
+                onDismiss()
+                return@launch
+            }
+            when (action) {
+                PdfAction.PRINT -> { runCatching { PdfFiles.print(context, file, "Weekly menu $weekLabel") }; onDismiss() }
+                PdfAction.SHARE -> { runCatching { PdfFiles.share(context, file) }; onDismiss() }
+                PdfAction.SAVE -> {
+                    toSave = file
+                    saveLauncher.launch(file.name)
+                }
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text("Weekly menu PDF") },
+        text = {
+            Column {
+                Text(
+                    "A printable menu for $weekLabel with every day's meals.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { includeRecipes = !includeRecipes },
+                ) {
+                    Checkbox(checked = includeRecipes, onCheckedChange = { includeRecipes = it })
+                    Text("Add a recipe page for each meal")
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable(enabled = includeRecipes) { includePhotos = !includePhotos },
+                ) {
+                    Checkbox(checked = includePhotos && includeRecipes, enabled = includeRecipes, onCheckedChange = { includePhotos = it })
+                    Text("Include meal photos")
+                }
+                Spacer(Modifier.height(12.dp))
+                if (busy) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Making your menu…")
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { run(PdfAction.PRINT) }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Filled.Print, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Print")
+                        }
+                        OutlinedButton(onClick = { run(PdfAction.SHARE) }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Filled.Share, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Share")
+                        }
+                    }
+                    OutlinedButton(onClick = { run(PdfAction.SAVE) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Download, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Save to phone")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Close") } },
     )
 }

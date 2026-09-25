@@ -46,6 +46,8 @@ class MealRepository(
     fun observeWeek(week: Week): Flow<List<PlannedMeal>> =
         plan.observeRange(week.start.toString(), week.end.toString())
 
+    suspend fun weekPlan(week: Week): List<PlannedMeal> = plan.range(week.start.toString(), week.end.toString())
+
     suspend fun getMeal(id: Long) = meals.get(id)
 
     /**

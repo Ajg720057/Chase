@@ -83,6 +83,7 @@ import com.chase.planboard.ui.common.Format
 import com.chase.planboard.ui.common.PlanCard
 import com.chase.planboard.ui.common.SectionHeader
 import com.chase.planboard.ui.common.TimePickerModal
+import com.chase.planboard.ui.export.ExportItineraryDialog
 import com.chase.planboard.ui.planBoardApp
 import com.chase.planboard.ui.theme.ScopeColors
 import java.time.LocalDate
@@ -105,6 +106,7 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
     var showTime by remember { mutableStateOf(false) }
     var showDuplicate by remember { mutableStateOf(false) }
     var showRepeat by remember { mutableStateOf(false) }
+    var showExport by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var editingTodo by remember { mutableStateOf<TodoEntity?>(null) }
     var addingTodo by remember { mutableStateOf(false) }
@@ -144,6 +146,10 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
                         DropdownMenuItem(
                             text = { Text("Repeat…") },
                             onClick = { menuOpen = false; showRepeat = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export as PDF…") },
+                            onClick = { menuOpen = false; showExport = true },
                         )
                         DropdownMenuItem(
                             text = { Text("Delete") },
@@ -355,6 +361,9 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
                 onPick = vm::duplicate,
                 onDismiss = { showDuplicate = false },
             )
+        }
+        if (showExport) {
+            ExportItineraryDialog(initialScope = plan.scope, anchor = plan.startDate, onDismiss = { showExport = false })
         }
         if (showRepeat) {
             RepeatDialog(plan = plan, onConfirm = vm::repeat, onDismiss = { showRepeat = false })

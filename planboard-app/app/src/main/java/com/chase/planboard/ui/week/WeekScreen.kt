@@ -62,7 +62,7 @@ fun WeekScreen(board: BoardViewModel, navigator: Navigator) {
                     IconButton(onClick = { board.select(today) }) {
                         Icon(Icons.Filled.Today, contentDescription = "This week")
                     }
-                    MainMenu()
+                    MainMenu(Scope.WEEK, date)
                 },
             )
         },

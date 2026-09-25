@@ -77,7 +77,7 @@ fun MonthScreen(board: BoardViewModel, navigator: Navigator) {
                     IconButton(onClick = { board.select(LocalDate.now()) }) {
                         Icon(Icons.Filled.Today, contentDescription = "Today")
                     }
-                    MainMenu()
+                    MainMenu(Scope.MONTH, date)
                 },
             )
         },

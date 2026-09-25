@@ -4,6 +4,7 @@ import android.app.Application
 import com.chase.planboard.data.AppDatabase
 import com.chase.planboard.data.Backup
 import com.chase.planboard.data.PlanRepository
+import com.chase.planboard.export.ItineraryExporter
 import com.chase.planboard.link.LifeBoardLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,4 +17,5 @@ class PlanBoardApp : Application() {
     val lifeBoard by lazy { LifeBoardLink(this) }
     val plans by lazy { PlanRepository(database, lifeBoard) }
     val backup by lazy { Backup(this, database) }
+    val itinerary by lazy { ItineraryExporter(this, database) }
 }

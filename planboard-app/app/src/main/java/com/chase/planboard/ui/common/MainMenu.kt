@@ -17,21 +17,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.chase.planboard.data.Scope
+import com.chase.planboard.ui.export.ExportItineraryDialog
 import com.chase.planboard.ui.planBoardApp
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-/** Overflow menu with backup/restore and a shortcut to LifeBoard, shown on each main tab. */
+/**
+ * Overflow menu shown on each main tab: PDF itinerary export (starting from the tab's
+ * [scope] and [date]), backup/restore, and a shortcut to LifeBoard.
+ */
 @Composable
-fun MainMenu() {
+fun MainMenu(scope: Scope, date: LocalDate) {
     val app = planBoardApp()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val coroutines = rememberCoroutineScope()
     var open by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
     var confirmRestore by remember { mutableStateOf<android.net.Uri?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null) coroutines.launch {
             val result = runCatching { app.backup.export(uri) }
             Toast.makeText(
                 context,
@@ -46,6 +52,10 @@ fun MainMenu() {
 
     IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenuItem(
+            text = { Text("Export itinerary (PDF)…") },
+            onClick = { open = false; exporting = true },
+        )
         if (app.lifeBoard.isInstalled()) {
             DropdownMenuItem(
                 text = { Text("Open LifeBoard") },
@@ -62,13 +72,17 @@ fun MainMenu() {
         )
     }
 
+    if (exporting) {
+        ExportItineraryDialog(initialScope = scope, anchor = date, onDismiss = { exporting = false })
+    }
+
     confirmRestore?.let { uri ->
         ConfirmDialog(
             title = "Restore backup?",
             text = "This replaces all plans, to-dos and progress notes on this phone with the ones in the backup.",
             confirm = "Restore",
             onConfirm = {
-                scope.launch {
+                coroutines.launch {
                     val result = runCatching { app.backup.import(uri) }
                     Toast.makeText(
                         context,

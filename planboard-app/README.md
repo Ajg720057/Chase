@@ -53,6 +53,17 @@ from before the PlanBoard link can't receive to-dos.
   PlanBoard also removes it from LifeBoard.
 - On a linked to-do, the link button can **Open in LifeBoard** or **Stop syncing**.
 
+**PDF itinerary**
+- Open the ⋮ menu on any tab and choose **Export itinerary (PDF)…**. Or, on a plan, choose
+  **Export as PDF…** from its ⋮ menu.
+- Pick a **Day**, **Week** or **Month** (use the arrows to move to other ones), or **Custom**
+  for any range up to a year.
+- Choose what to include: to-dos, plan details, progress log, finished plans, and days with
+  nothing planned.
+- The PDF lists the month goals and week plans for those dates, then goes day by day with
+  times, details and to-do checkboxes. Save it anywhere (Downloads, Google Drive…), then
+  open or share it straight away.
+
 **Backup**
 - Open the ⋮ menu on any tab and choose **Back up to file…** to save everything as a
   `.json` file. Save it to Google Drive or Downloads.

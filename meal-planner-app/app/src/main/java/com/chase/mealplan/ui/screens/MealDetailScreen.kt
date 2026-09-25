@@ -63,6 +63,8 @@ import com.chase.mealplan.grocery.NutritionFacts
 import kotlin.math.roundToInt
 import com.chase.mealplan.ui.AddToPlanDialog
 import com.chase.mealplan.ui.ConfirmDialog
+import com.chase.mealplan.ui.EatersPicker
+import com.chase.mealplan.data.eaterIds
 import com.chase.mealplan.ui.MainViewModel
 import com.chase.mealplan.ui.Navigator
 import com.chase.mealplan.ui.SectionHeader
@@ -81,6 +83,7 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
     val meal by mealFlow.collectAsState(initial = LOADING)
     val entry = entryFlow?.collectAsState(initial = null)?.value
     val week by vm.week.collectAsState()
+    val people by vm.people.collectAsState()
     var confirmRemove by remember { mutableStateOf(false) }
     var addToPlan by remember { mutableStateOf(false) }
     var viewPhoto by remember { mutableStateOf(false) }
@@ -133,6 +136,10 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                     label = { Text("${date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))} · ${entry.slot.label}") },
                     leadingIcon = { Icon(style.icon, null, tint = style.color, modifier = Modifier.size(18.dp)) },
                 )
+                if (people.size > 1) {
+                    Text("Who's eating", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
+                    EatersPicker(people, entry.eaterIds) { vm.setEntryEaters(entry.id, it) }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(
                         onClick = { navigator.edit(date = date, slot = entry.slot, entryId = entry.id) },

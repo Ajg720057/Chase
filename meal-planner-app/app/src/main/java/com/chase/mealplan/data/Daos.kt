@@ -67,6 +67,9 @@ interface PlanDao {
     @Insert
     suspend fun insertAll(entries: List<PlanEntryEntity>)
 
+    @Query("UPDATE plan_entries SET eaters = :eaters WHERE id = :id")
+    suspend fun setEaters(id: Long, eaters: String?)
+
     @Query("UPDATE plan_entries SET servings = :servings WHERE id = :id")
     suspend fun setServings(id: Long, servings: Int?)
 

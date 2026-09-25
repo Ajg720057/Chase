@@ -36,6 +36,9 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.chase.mealplan.pdf.PdfFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -79,7 +82,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.chase.mealplan.data.PlannedMeal
+import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.ReminderSettings
+import com.chase.mealplan.data.eaterIds
+import com.chase.mealplan.data.eatersLabel
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.OutlinedTextField
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.nutrition
 import kotlin.math.roundToInt
@@ -104,6 +114,8 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
     var confirmClear by remember { mutableStateOf(false) }
     var reminderOpen by remember { mutableStateOf(false) }
     var pdfOpen by remember { mutableStateOf(false) }
+    var peopleOpen by remember { mutableStateOf(false) }
+    val people by vm.people.collectAsState()
     val context = LocalContext.current
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val reminder by vm.reminder.collectAsState()
@@ -144,6 +156,20 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
                             text = { Text("Week starts on Monday") },
                             trailingIcon = { Checkbox(checked = startsMonday, onCheckedChange = null) },
                             onClick = { vm.setWeekStartsMonday(!startsMonday) },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("People")
+                                    Text(
+                                        people.joinToString(", ") { it.name },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Filled.People, null) },
+                            onClick = { menuOpen = false; peopleOpen = true },
                         )
                         DropdownMenuItem(
                             text = {
@@ -193,6 +219,7 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
                     day = day,
                     isToday = day == today,
                     slots = plan[day].orEmpty(),
+                    people = people,
                     onOpen = { navigator.meal(it.meal.id, it.entry.id) },
                     onAdd = { slot -> navigator.edit(date = day, slot = slot) },
                 )
@@ -217,6 +244,9 @@ fun PlanScreen(vm: MainViewModel, navigator: Navigator) {
             onConfirm = { vm.clearWeek() },
             onDismiss = { confirmClear = false },
         )
+    }
+    if (peopleOpen) {
+        PeopleDialog(current = people, onSave = vm::setPeople, onDismiss = { peopleOpen = false })
     }
     if (pdfOpen) {
         MenuPdfDialog(vm = vm, weekLabel = week.label, onDismiss = { pdfOpen = false })
@@ -249,6 +279,7 @@ private fun DayCard(
     day: LocalDate,
     isToday: Boolean,
     slots: Map<Slot, List<PlannedMeal>>,
+    people: List<Person>,
     onOpen: (PlannedMeal) -> Unit,
     onAdd: (Slot) -> Unit,
 ) {
@@ -290,14 +321,14 @@ private fun DayCard(
             }
             Spacer(Modifier.height(4.dp))
             Slot.entries.forEach { slot ->
-                SlotRow(slot, slots[slot].orEmpty(), onOpen, onAdd = { onAdd(slot) })
+                SlotRow(slot, slots[slot].orEmpty(), people, onOpen, onAdd = { onAdd(slot) })
             }
         }
     }
 }
 
 @Composable
-private fun SlotRow(slot: Slot, meals: List<PlannedMeal>, onOpen: (PlannedMeal) -> Unit, onAdd: () -> Unit) {
+private fun SlotRow(slot: Slot, meals: List<PlannedMeal>, people: List<Person>, onOpen: (PlannedMeal) -> Unit, onAdd: () -> Unit) {
     val style = slot.style()
     Column(Modifier.padding(vertical = 2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -339,12 +370,17 @@ private fun SlotRow(slot: Slot, meals: List<PlannedMeal>, onOpen: (PlannedMeal) 
             ) {
                 MealThumb(p.meal, 40.dp, corner = 8.dp)
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    p.meal.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column {
+                    Text(
+                        p.meal.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    eatersLabel(p.entry.eaterIds, people)?.let {
+                        Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
             }
         }
     }
@@ -503,5 +539,50 @@ private fun MenuPdfDialog(vm: MainViewModel, weekLabel: String, onDismiss: () ->
         },
         confirmButton = {},
         dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun PeopleDialog(current: List<Person>, onSave: (List<Person>) -> Unit, onDismiss: () -> Unit) {
+    val names = remember { mutableStateListOf<Pair<Int, String>>().apply { addAll(current.map { it.id to it.name }) } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("People") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    "Who eats at your house. On any planned meal you can mark who's having it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                names.forEachIndexed { i, (id, name) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { names[i] = id to it.take(20) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f).padding(vertical = 3.dp),
+                        )
+                        IconButton(enabled = names.size > 1, onClick = { names.removeAt(i) }) {
+                            Icon(Icons.Filled.Close, "Remove")
+                        }
+                    }
+                }
+                TextButton(onClick = { names.add(((names.maxOfOrNull { it.first } ?: 0) + 1) to "") }) {
+                    Icon(Icons.Filled.PersonAdd, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add person")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val cleaned = names.map { (id, n) -> Person(id, n.trim()) }.filter { it.name.isNotEmpty() }
+                if (cleaned.isNotEmpty()) onSave(cleaned)
+                onDismiss()
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

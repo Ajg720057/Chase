@@ -23,6 +23,12 @@ signed with the same key (`app/mealplanner.keystore`).
   From there you can **Swap** it for another meal, **Remove** it from that day, or add it to
   another day as well.
 - A slot can hold more than one item (for example a main and a side, or several snacks).
+- **Who's eating:** when you each have something different, mark each meal with who it's for
+  (tap the names on the meal, or when adding it). The plan and the menu PDF show the name, e.g.
+  "Oatmeal · Me" and "Yogurt parfait · Wife". Meals without names are for everyone. Set up the
+  names from ⋮ → **People**.
+- **Menu PDF** (the PDF button at the top): a printable one-page menu for the week shown, with an
+  optional page per meal (photo, ingredients, supplies and recipe). Print it, share it, or save it.
 - Each day shows roughly how many calories one serving of each planned meal adds up to.
 - ⋮ menu: **Copy last week's meals**, **Clear this week**, **Week starts on Monday**,
   **Weekly reminder**, and backup.

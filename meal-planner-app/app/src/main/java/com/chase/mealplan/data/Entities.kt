@@ -66,7 +66,17 @@ data class PlanEntryEntity(
     val sortOrder: Long = System.currentTimeMillis(),
     /** Servings being made that day, when different from what the recipe makes. */
     val servings: Int? = null,
+    /** Who's eating it, as person ids like ",1,2,". Null means everyone. */
+    val eaters: String? = null,
 )
+
+/** The ids of the people eating this, or null for everyone. */
+val PlanEntryEntity.eaterIds: Set<Int>?
+    get() = eaters?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.toSet()?.takeIf { it.isNotEmpty() }
+
+/** Stores a set of person ids; null or empty means everyone. */
+fun eatersColumn(ids: Set<Int>?): String? =
+    ids?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(",", prefix = ",", postfix = ",")
 
 data class PlannedMeal(
     @Embedded val entry: PlanEntryEntity,

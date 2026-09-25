@@ -11,7 +11,10 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import androidx.compose.ui.graphics.toArgb
+import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.PhotoStore
+import com.chase.mealplan.data.eaterIds
+import com.chase.mealplan.data.eatersLabel
 import com.chase.mealplan.data.PlannedMeal
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.Week
@@ -49,21 +52,27 @@ class MenuPdf(private val photos: PhotoStore) {
         includeRecipes: Boolean,
         includePhotos: Boolean,
         out: File,
+        people: List<Person> = emptyList(),
     ) {
         val doc = PdfDocument()
         try {
-            val pages = Pages(doc)
-            pages.newPage()
-            drawMenu(pages.canvas, week, planned)
-            if (includeRecipes) {
-                // Each meal once, in the order it first appears in the week.
-                val order = planned.sortedWith(compareBy({ it.entry.date }, { it.entry.slot.ordinal }, { it.entry.sortOrder }))
-                order.distinctBy { it.meal.id }.forEach { p ->
-                    pages.newPage()
-                    drawRecipe(pages, p, order.filter { it.meal.id == p.meal.id }, includePhotos)
-                }
-            }
-            pages.finish()
+            var page: PdfDocument.Page? = null
+            var number = 0
+            render(
+                week, planned, includeRecipes, includePhotos, people,
+                object : PageSink {
+                    override fun start(width: Int, height: Int): Canvas {
+                        number++
+                        return doc.startPage(PdfDocument.PageInfo.Builder(width, height, number).create())
+                            .also { page = it }.canvas
+                    }
+
+                    override fun finish() {
+                        page?.let(doc::finishPage)
+                        page = null
+                    }
+                },
+            )
             out.parentFile?.mkdirs()
             out.outputStream().use { doc.writeTo(it) }
         } finally {
@@ -71,9 +80,39 @@ class MenuPdf(private val photos: PhotoStore) {
         }
     }
 
+    /** Where pages are drawn: a PDF file in the app, plain bitmaps in tests. */
+    interface PageSink {
+        fun start(width: Int, height: Int): Canvas
+        fun finish()
+    }
+
+    /** Draws every page into [sink]. Returns how many pages there were. */
+    fun render(
+        week: Week,
+        planned: List<PlannedMeal>,
+        includeRecipes: Boolean,
+        includePhotos: Boolean,
+        people: List<Person>,
+        sink: PageSink,
+    ): Int {
+        val pages = Pages(sink)
+        pages.newPage()
+        drawMenu(pages.canvas, week, planned, people)
+        if (includeRecipes) {
+            // Each meal once, in the order it first appears in the week.
+            val order = planned.sortedWith(compareBy({ it.entry.date }, { it.entry.slot.ordinal }, { it.entry.sortOrder }))
+            order.distinctBy { it.meal.id }.forEach { p ->
+                pages.newPage()
+                drawRecipe(pages, p, order.filter { it.meal.id == p.meal.id }, includePhotos)
+            }
+        }
+        pages.finish()
+        return pages.count
+    }
+
     // ---- Page 1: the week at a glance ----
 
-    private fun drawMenu(c: Canvas, week: Week, planned: List<PlannedMeal>) {
+    private fun drawMenu(c: Canvas, week: Week, planned: List<PlannedMeal>, people: List<Person>) {
         var y = margin
         y = drawText(c, "Weekly Menu", paint(26f, bold = true, color = green), margin, y, pageW - 2 * margin)
         y = drawText(c, week.label + ", " + week.end.year, paint(13f, color = muted), margin, y + 2, pageW - 2 * margin)
@@ -111,7 +150,9 @@ class MenuPdf(private val photos: PhotoStore) {
             }
             Slot.entries.forEachIndexed { i, slot ->
                 val x = margin + dayColW + i * colW
-                val names = meals.filter { it.entry.slot == slot }.joinToString("\n") { "• " + it.meal.name }
+                val names = meals.filter { it.entry.slot == slot }.joinToString("\n") { p ->
+                    "• " + p.meal.name + (eatersLabel(p.entry.eaterIds, people)?.let { " ($it)" } ?: "")
+                }
                 if (names.isNotEmpty()) drawClipped(c, names, paint(10f), x + 6, top + 6, colW - 12, rowH - 10)
             }
         }
@@ -237,22 +278,23 @@ class MenuPdf(private val photos: PhotoStore) {
     }
 
     /** Flows text down pages, starting a new page when one fills up. */
-    private inner class Pages(private val doc: PdfDocument) {
-        private var page: PdfDocument.Page? = null
-        private var number = 0
+    private inner class Pages(private val sink: PageSink) {
+        private var current: Canvas? = null
+        var count = 0
+            private set
         var y = margin
-        val canvas: Canvas get() = page!!.canvas
+        val canvas: Canvas get() = current!!
 
         fun newPage() {
-            page?.let(doc::finishPage)
-            number++
-            page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, number).create())
+            if (current != null) sink.finish()
+            current = sink.start(pageW, pageH)
+            count++
             y = margin
         }
 
         fun finish() {
-            page?.let(doc::finishPage)
-            page = null
+            if (current != null) sink.finish()
+            current = null
         }
 
         fun ensure(space: Float) {

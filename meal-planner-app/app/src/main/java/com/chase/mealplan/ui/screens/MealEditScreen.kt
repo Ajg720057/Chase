@@ -70,6 +70,7 @@ import com.chase.mealplan.MealPlanApp
 import com.chase.mealplan.grocery.IngredientLine
 import com.chase.mealplan.grocery.Nutrition
 import com.chase.mealplan.ui.ConfirmDialog
+import com.chase.mealplan.ui.EatersPicker
 import com.chase.mealplan.ui.MealThumb
 import com.chase.mealplan.ui.Navigator
 import com.chase.mealplan.ui.SectionHeader
@@ -212,6 +213,11 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text("servings", style = MaterialTheme.typography.bodyLarge)
+            }
+
+            if (vm.date != null && vm.entryId == null && vm.people.size > 1) {
+                SectionHeader("Who's eating")
+                EatersPicker(vm.people, vm.eaters) { vm.eaters = it; vm.touch() }
             }
 
             SectionHeader("Photo")

@@ -50,11 +50,27 @@ class Settings(context: Context) {
         _reminder.value = value
     }
 
+    private val _people = MutableStateFlow(loadPeople())
+    /** Everyone in the household, for marking who's eating what. */
+    val people: StateFlow<List<Person>> = _people
+
+    fun setPeople(value: List<Person>) {
+        val arr = org.json.JSONArray(value.map { org.json.JSONObject().put("id", it.id).put("name", it.name) })
+        prefs.edit().putString(KEY_PEOPLE, arr.toString()).apply()
+        _people.value = value
+    }
+
+    private fun loadPeople(): List<Person> = runCatching {
+        val arr = org.json.JSONArray(prefs.getString(KEY_PEOPLE, null)!!)
+        (0 until arr.length()).map { arr.getJSONObject(it).let { o -> Person(o.getInt("id"), o.getString("name")) } }
+    }.getOrNull()?.takeIf { it.isNotEmpty() } ?: listOf(Person(1, "Me"), Person(2, "Wife"))
+
     private fun parseDate(s: String) = runCatching { LocalDate.parse(s) }.getOrNull()
 
     private companion object {
         const val KEY_MONDAY = "week_starts_monday"
         const val KEY_GROCERY_WEEK = "grocery_week"
+        const val KEY_PEOPLE = "people"
         const val KEY_REMINDER_ON = "reminder_on"
         const val KEY_REMINDER_DAY = "reminder_day"
         const val KEY_REMINDER_TIME = "reminder_minute_of_day"
@@ -68,4 +84,14 @@ data class ReminderSettings(val enabled: Boolean, val day: DayOfWeek, val minute
     val label: String
         get() = "${day.getDisplayName(TextStyle.FULL, Locale.getDefault())}s at " +
             time.format(DateTimeFormatter.ofPattern("h:mm a"))
+}
+
+data class Person(val id: Int, val name: String)
+
+/** "Me", "Me & Wife", or null when it's everyone. */
+fun eatersLabel(ids: Set<Int>?, people: List<Person>): String? {
+    if (ids == null) return null
+    val names = people.filter { it.id in ids }.map { it.name }
+    if (names.isEmpty() || names.size == people.size) return null
+    return names.joinToString(" & ")
 }

@@ -61,6 +61,7 @@ class MealRepository(
         date: LocalDate?,
         slot: Slot?,
         entryId: Long?,
+        eaters: Set<Int>? = null,
     ): Long = db.withTransaction {
         val name = draft.name.trim()
         val clean = draft.copy(
@@ -91,7 +92,9 @@ class MealRepository(
 
         when {
             entryId != null -> plan.setMeal(entryId, savedId)
-            date != null && slot != null -> plan.insert(PlanEntryEntity(date = date.toString(), slot = slot, mealId = savedId))
+            date != null && slot != null -> plan.insert(
+                PlanEntryEntity(date = date.toString(), slot = slot, mealId = savedId, eaters = eatersColumn(eaters)),
+            )
         }
         savedId
     }
@@ -112,6 +115,8 @@ class MealRepository(
     }
 
     suspend fun removeFromPlan(entryId: Long) = plan.delete(entryId)
+
+    suspend fun setEntryEaters(entryId: Long, ids: Set<Int>?) = plan.setEaters(entryId, eatersColumn(ids))
 
     suspend fun setEntryServings(entryId: Long, servings: Int?) = plan.setServings(entryId, servings)
 

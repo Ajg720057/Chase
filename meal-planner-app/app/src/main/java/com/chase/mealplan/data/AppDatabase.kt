@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         MealEntity::class, PlanEntryEntity::class, GroceryItemEntity::class, SectionOverrideEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -25,8 +25,15 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "mealplanner.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
+
+        /** Adds who's eating each planned meal. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `plan_entries` ADD COLUMN `eaters` TEXT")
+            }
+        }
 
         /** Adds servings, typed-in nutrition and store sections. */
         val MIGRATION_1_2 = object : Migration(1, 2) {

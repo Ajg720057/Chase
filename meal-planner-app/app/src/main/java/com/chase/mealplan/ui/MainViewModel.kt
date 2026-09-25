@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.chase.mealplan.MealPlanApp
 import com.chase.mealplan.data.GroceryItemEntity
 import com.chase.mealplan.data.MealEntity
+import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.PlannedMeal
 import com.chase.mealplan.data.ReminderSettings
 import com.chase.mealplan.grocery.StoreSection
@@ -76,6 +77,10 @@ class MainViewModel(private val app: MealPlanApp) : ViewModel() {
     val reminder: StateFlow<ReminderSettings> = settings.reminder
     fun setReminder(value: ReminderSettings) = settings.setReminder(value)
 
+    val people: StateFlow<List<Person>> = settings.people
+    fun setPeople(value: List<Person>) = settings.setPeople(value)
+    fun setEntryEaters(entryId: Long, ids: Set<Int>?) = viewModelScope.launch { repo.setEntryEaters(entryId, ids) }
+
     fun setEntryServings(entryId: Long, servings: Int?) = viewModelScope.launch { repo.setEntryServings(entryId, servings) }
 
     fun setSection(item: GroceryItemEntity, section: StoreSection) = viewModelScope.launch { repo.setSection(item, section) }
@@ -121,7 +126,7 @@ class MainViewModel(private val app: MealPlanApp) : ViewModel() {
         val planned = repo.weekPlan(w)
         if (planned.isEmpty()) return@withContext null
         val file = PdfFiles.menuFile(app, "Weekly menu ${w.start}.pdf")
-        MenuPdf(app.photos).write(w, planned, includeRecipes, includePhotos, file)
+        MenuPdf(app.photos).write(w, planned, includeRecipes, includePhotos, file, settings.people.value)
         file
     }
 

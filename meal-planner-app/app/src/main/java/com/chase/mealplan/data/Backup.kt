@@ -35,6 +35,7 @@ class Backup(
             put("plan", JSONArray(db.planDao().all().map { it.toJson() }))
             put("grocery", JSONArray(db.groceryDao().all().map { it.toJson() }))
             put("groceryWeek", settings.groceryWeek.value?.toString() ?: JSONObject.NULL)
+            put("people", JSONArray(settings.people.value.map { JSONObject().put("id", it.id).put("name", it.name) }))
             put(
                 "sections",
                 JSONArray(db.sectionDao().all().map { JSONObject().put("key", it.key).put("section", it.section.name) }),
@@ -86,6 +87,8 @@ class Backup(
                 }.orEmpty(),
             )
         }
+        data.optJSONArray("people")?.objects()?.map { Person(it.getInt("id"), it.getString("name")) }
+            ?.takeIf { it.isNotEmpty() }?.let(settings::setPeople)
         settings.setGroceryWeek(
             data.optString("groceryWeek").takeIf { it.isNotEmpty() && it != "null" }
                 ?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
@@ -127,12 +130,14 @@ class Backup(
     private fun PlanEntryEntity.toJson() = JSONObject().apply {
         put("id", id); put("date", date); put("slot", slot.name); put("mealId", mealId); put("sortOrder", sortOrder)
         put("servings", servings ?: JSONObject.NULL)
+        put("eaters", eaters ?: JSONObject.NULL)
     }
 
     private fun JSONObject.toEntry() = PlanEntryEntity(
         id = getLong("id"), date = getString("date"),
         slot = runCatching { Slot.valueOf(getString("slot")) }.getOrDefault(Slot.DINNER),
         mealId = getLong("mealId"), sortOrder = optLong("sortOrder"), servings = optIntOrNull("servings"),
+        eaters = if (!has("eaters") || isNull("eaters")) null else getString("eaters"),
     )
 
     private fun GroceryItemEntity.toJson() = JSONObject().apply {

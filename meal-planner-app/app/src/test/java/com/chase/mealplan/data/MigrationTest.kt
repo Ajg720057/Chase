@@ -60,7 +60,7 @@ class MigrationTest {
         }.writableDatabase.close()
 
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -74,6 +74,9 @@ class MigrationTest {
             val entry = db.planDao().get(5)!!
             assertEquals(Slot.DINNER, entry.slot)
             assertNull(entry.servings)
+            assertNull(entry.eaterIds)
+            db.planDao().setEaters(5, eatersColumn(setOf(2)))
+            assertEquals(setOf(2), db.planDao().get(5)!!.eaterIds)
 
             val item = db.groceryDao().all().single()
             assertEquals("Ground beef", item.name)

@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.chase.mealplan.MealPlanApp
 import com.chase.mealplan.data.MealEntity
+import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.Week
 import com.chase.mealplan.ui.theme.style
@@ -196,5 +199,25 @@ fun MealRow(meal: MealEntity, onClick: () -> Unit, modifier: Modifier = Modifier
             }
         }
         trailing()
+    }
+}
+
+/** "Everyone" plus a chip per person. [selected] null means everyone. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun EatersPicker(people: List<Person>, selected: Set<Int>?, onChange: (Set<Int>?) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FilterChip(selected = selected == null, onClick = { onChange(null) }, label = { Text("Everyone") })
+        people.forEach { p ->
+            val on = selected != null && p.id in selected
+            FilterChip(
+                selected = on,
+                onClick = {
+                    val next = (selected ?: emptySet()).let { if (on) it - p.id else it + p.id }
+                    onChange(next.takeIf { it.isNotEmpty() && it.size < people.size })
+                },
+                label = { Text(p.name) },
+            )
+        }
     }
 }

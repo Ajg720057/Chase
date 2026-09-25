@@ -58,6 +58,10 @@ class MealEditViewModel(
     val ingredients = mutableStateListOf<IngredientRow>()
     val supplies = mutableStateListOf<SupplyRow>()
 
+    /** Who's eating, for a meal being added to the plan. Null means everyone. */
+    var eaters by mutableStateOf<Set<Int>?>(null)
+    val people = app.settings.people.value
+
     var dirty by mutableStateOf(false)
         private set
     var importingPhoto by mutableStateOf(false)
@@ -152,7 +156,7 @@ class MealEditViewModel(
         val picked = pickedName
         val mealId = if (picked != null && !picked.equals(name.trim(), ignoreCase = true)) null else loadedMealId
         // Runs in the app scope so it finishes even though the screen closes right away.
-        app.appScope.launch { repo.saveMeal(mealId, draft, date, slot, entryId) }
+        app.appScope.launch { repo.saveMeal(mealId, draft, date, slot, entryId, eaters) }
         onSaved()
     }
 }

@@ -65,6 +65,9 @@ import com.chase.mealplan.ui.AddToPlanDialog
 import com.chase.mealplan.ui.ConfirmDialog
 import com.chase.mealplan.ui.EatersPicker
 import com.chase.mealplan.data.eaterIds
+import com.chase.mealplan.data.isLeftover
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material3.Switch
 import com.chase.mealplan.ui.MainViewModel
 import com.chase.mealplan.ui.Navigator
 import com.chase.mealplan.ui.SectionHeader
@@ -86,6 +89,7 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
     val people by vm.people.collectAsState()
     var confirmRemove by remember { mutableStateOf(false) }
     var addToPlan by remember { mutableStateOf(false) }
+    var planLeftovers by remember { mutableStateOf(false) }
     var viewPhoto by remember { mutableStateOf(false) }
 
     LaunchedEffect(meal) {
@@ -136,6 +140,20 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                     label = { Text("${date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))} · ${entry.slot.label}") },
                     leadingIcon = { Icon(style.icon, null, tint = style.color, modifier = Modifier.size(18.dp)) },
                 )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Leftovers", style = MaterialTheme.typography.bodyLarge)
+                        Muted("Eating food made on another day, so it's left off the grocery list.")
+                    }
+                    Switch(checked = entry.isLeftover, onCheckedChange = { vm.setLeftover(entry.id, it) })
+                }
+                if (!entry.isLeftover) {
+                    OutlinedButton(onClick = { planLeftovers = true }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Restaurant, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Plan the leftovers for another day")
+                    }
+                }
                 if (people.size > 1) {
                     Text("Who's eating", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
                     EatersPicker(people, entry.eaterIds) { vm.setEntryEaters(entry.id, it) }
@@ -257,6 +275,14 @@ fun MealDetailScreen(vm: MainViewModel, mealId: Long, entryId: Long?, navigator:
                 navigator.back()
             },
             onDismiss = { confirmRemove = false },
+        )
+    }
+    if (planLeftovers && entry != null) {
+        AddToPlanDialog(
+            startWeek = week,
+            title = "When will you eat the leftovers?",
+            onPick = { date, slot -> vm.addToPlan(m.id, date, slot, leftover = true, eaters = entry.eaters) },
+            onDismiss = { planLeftovers = false },
         )
     }
     if (addToPlan) {

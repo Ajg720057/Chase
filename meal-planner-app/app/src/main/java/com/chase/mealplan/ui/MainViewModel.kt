@@ -89,10 +89,14 @@ class MainViewModel(private val app: MealPlanApp) : ViewModel() {
 
     fun removeFromPlan(entryId: Long) = app.appScope.launch { repo.removeFromPlan(entryId) }
 
-    fun addToPlan(mealId: Long, date: LocalDate, slot: Slot) = viewModelScope.launch {
-        repo.addToPlan(mealId, date, slot)
-        _messages.tryEmit("Added to ${date.dayOfWeek.displayName()} ${slot.label.lowercase()}")
-    }
+    fun addToPlan(mealId: Long, date: LocalDate, slot: Slot, leftover: Boolean = false, eaters: String? = null) =
+        viewModelScope.launch {
+            repo.addToPlan(mealId, date, slot, leftover, eaters)
+            val what = if (leftover) "Leftovers added" else "Added"
+            _messages.tryEmit("$what to ${date.dayOfWeek.displayName()} ${slot.label.lowercase()}")
+        }
+
+    fun setLeftover(entryId: Long, leftover: Boolean) = viewModelScope.launch { repo.setLeftover(entryId, leftover) }
 
     fun copyPreviousWeek() = viewModelScope.launch {
         val n = repo.copyPreviousWeek(week.value)

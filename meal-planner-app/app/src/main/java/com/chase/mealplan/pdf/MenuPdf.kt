@@ -13,8 +13,7 @@ import android.text.TextPaint
 import androidx.compose.ui.graphics.toArgb
 import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.PhotoStore
-import com.chase.mealplan.data.eaterIds
-import com.chase.mealplan.data.eatersLabel
+import com.chase.mealplan.data.entryNote
 import com.chase.mealplan.data.PlannedMeal
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.data.Week
@@ -151,7 +150,7 @@ class MenuPdf(private val photos: PhotoStore) {
             Slot.entries.forEachIndexed { i, slot ->
                 val x = margin + dayColW + i * colW
                 val names = meals.filter { it.entry.slot == slot }.joinToString("\n") { p ->
-                    "• " + p.meal.name + (eatersLabel(p.entry.eaterIds, people)?.let { " ($it)" } ?: "")
+                    "• " + p.meal.name + (entryNote(p.entry, people)?.let { " ($it)" } ?: "")
                 }
                 if (names.isNotEmpty()) drawClipped(c, names, paint(10f), x + 6, top + 6, colW - 12, rowH - 10)
             }

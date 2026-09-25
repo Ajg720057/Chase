@@ -84,8 +84,7 @@ import androidx.compose.ui.unit.dp
 import com.chase.mealplan.data.PlannedMeal
 import com.chase.mealplan.data.Person
 import com.chase.mealplan.data.ReminderSettings
-import com.chase.mealplan.data.eaterIds
-import com.chase.mealplan.data.eatersLabel
+import com.chase.mealplan.data.entryNote
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Close
@@ -377,7 +376,7 @@ private fun SlotRow(slot: Slot, meals: List<PlannedMeal>, people: List<Person>, 
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    eatersLabel(p.entry.eaterIds, people)?.let {
+                    entryNote(p.entry, people)?.let {
                         Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
                     }
                 }

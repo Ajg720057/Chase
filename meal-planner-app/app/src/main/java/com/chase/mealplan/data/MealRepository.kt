@@ -110,9 +110,16 @@ class MealRepository(
         photos.delete(meal.photo)
     }
 
-    suspend fun addToPlan(mealId: Long, date: LocalDate, slot: Slot) {
-        plan.insert(PlanEntryEntity(date = date.toString(), slot = slot, mealId = mealId))
+    suspend fun addToPlan(mealId: Long, date: LocalDate, slot: Slot, leftover: Boolean = false, eaters: String? = null) {
+        plan.insert(
+            PlanEntryEntity(
+                date = date.toString(), slot = slot, mealId = mealId,
+                leftover = leftover.takeIf { it }, eaters = eaters,
+            ),
+        )
     }
+
+    suspend fun setLeftover(entryId: Long, leftover: Boolean) = plan.setLeftover(entryId, leftover.takeIf { it })
 
     suspend fun removeFromPlan(entryId: Long) = plan.delete(entryId)
 
@@ -151,7 +158,8 @@ class MealRepository(
      * switching to a new week drops everything already checked off.
      */
     suspend fun buildGroceryList(week: Week): Int = db.withTransaction {
-        val planned = plan.range(week.start.toString(), week.end.toString())
+        // Leftovers were bought for the day they were cooked.
+        val planned = plan.range(week.start.toString(), week.end.toString()).filter { !it.entry.isLeftover }
         val ingredientItems = Ingredients.aggregate(
             planned.flatMap { p ->
                 p.meal.ingredients.map { IngredientUse(Ingredients.scaleAmount(it.amount, p.scale), it.name, p.meal.name) }

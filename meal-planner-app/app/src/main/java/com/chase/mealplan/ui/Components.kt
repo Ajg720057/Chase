@@ -128,6 +128,7 @@ fun AddToPlanDialog(
     startWeek: Week,
     onPick: (LocalDate, Slot) -> Unit,
     onDismiss: () -> Unit,
+    title: String = "Add to plan",
 ) {
     var week by remember { mutableStateOf(startWeek) }
     var day by remember { mutableStateOf<LocalDate?>(null) }
@@ -135,7 +136,7 @@ fun AddToPlanDialog(
     val dayFmt = remember { DateTimeFormatter.ofPattern("EEE d") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add to plan") },
+        title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 WeekSwitcher(week, { week = week.plusWeeks(-1); day = null }, { week = week.plusWeeks(1); day = null })

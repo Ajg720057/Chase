@@ -68,7 +68,16 @@ data class PlanEntryEntity(
     val servings: Int? = null,
     /** Who's eating it, as person ids like ",1,2,". Null means everyone. */
     val eaters: String? = null,
+    /** Leftovers from another day: shown on the plan but left off the grocery list. */
+    val leftover: Boolean? = null,
 )
+
+val PlanEntryEntity.isLeftover: Boolean get() = leftover == true
+
+/** "Leftovers · Me", "Wife", or null for a normal meal for everyone. */
+fun entryNote(entry: PlanEntryEntity, people: List<Person>): String? =
+    listOfNotNull(if (entry.isLeftover) "Leftovers" else null, eatersLabel(entry.eaterIds, people))
+        .joinToString(" · ").ifEmpty { null }
 
 /** The ids of the people eating this, or null for everyone. */
 val PlanEntryEntity.eaterIds: Set<Int>?

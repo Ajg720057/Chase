@@ -131,6 +131,7 @@ class Backup(
         put("id", id); put("date", date); put("slot", slot.name); put("mealId", mealId); put("sortOrder", sortOrder)
         put("servings", servings ?: JSONObject.NULL)
         put("eaters", eaters ?: JSONObject.NULL)
+        put("leftover", leftover == true)
     }
 
     private fun JSONObject.toEntry() = PlanEntryEntity(
@@ -138,6 +139,7 @@ class Backup(
         slot = runCatching { Slot.valueOf(getString("slot")) }.getOrDefault(Slot.DINNER),
         mealId = getLong("mealId"), sortOrder = optLong("sortOrder"), servings = optIntOrNull("servings"),
         eaters = if (!has("eaters") || isNull("eaters")) null else getString("eaters"),
+        leftover = optBoolean("leftover").takeIf { it },
     )
 
     private fun GroceryItemEntity.toJson() = JSONObject().apply {

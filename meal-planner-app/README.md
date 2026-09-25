@@ -23,6 +23,10 @@ signed with the same key (`app/mealplanner.keystore`).
   From there you can **Swap** it for another meal, **Remove** it from that day, or add it to
   another day as well.
 - A slot can hold more than one item (for example a main and a side, or several snacks).
+- **Leftovers:** if a recipe makes more than you'll eat in one sitting, open the planned meal and
+  tap **Plan the leftovers for another day**. That day shows the meal marked "Leftovers", and it
+  isn't added to the grocery list again. You can also flip the **Leftovers** switch on any planned
+  meal (for example food already in the fridge).
 - **Who's eating:** when you each have something different, mark each meal with who it's for
   (tap the names on the meal, or when adding it). The plan and the menu PDF show the name, e.g.
   "Oatmeal · Me" and "Yogurt parfait · Wife". Meals without names are for everyone. Set up the

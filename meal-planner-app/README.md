@@ -42,6 +42,10 @@ signed with the same key (`app/mealplanner.keystore`).
   ingredients, supplies, recipe and photo fill in automatically.
 - New meals are saved to your library when you tap **Save**, so next time you only
   need to type the name.
+- **Import from a recipe website:** paste a recipe's web address and the name, servings,
+  ingredients, steps, photo and nutrition are filled in (when the site provides them, as most big
+  recipe sites and food blogs do). Or, in your browser, tap **Share → Meal Planner** on a recipe
+  page to start a new meal from it. Check it over and tap Save.
 - **Take photo** uses the camera; **Choose** picks a picture from your gallery.
 - Each ingredient has an amount ("2 cups") and a name ("rice").
   **Paste a list** takes a whole ingredient list copied from a recipe website, one per line,

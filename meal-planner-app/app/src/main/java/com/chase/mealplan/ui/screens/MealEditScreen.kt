@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
@@ -67,6 +68,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.chase.mealplan.MealPlanApp
+import com.chase.mealplan.importer.RecipeImporter
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalClipboardManager
 import com.chase.mealplan.grocery.IngredientLine
 import com.chase.mealplan.grocery.Nutrition
 import com.chase.mealplan.ui.ConfirmDialog
@@ -84,6 +88,7 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
     var nameFocused by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var pasteOpen by remember { mutableStateOf(false) }
+    var importOpen by remember { mutableStateOf(false) }
 
     var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
@@ -143,6 +148,29 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
                     .fillMaxWidth()
                     .onFocusChanged { nameFocused = it.isFocused },
             )
+
+            OutlinedButton(
+                onClick = { vm.importError = null; importOpen = true },
+                enabled = !vm.importing,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Icon(Icons.Filled.Language, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Import from a recipe website")
+            }
+            if (vm.importing && !importOpen) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Reading the recipe…", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            if (!importOpen) {
+                vm.importError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 6.dp))
+                }
+            }
 
             // Saved meals matching what's typed. Tapping one fills in everything.
             val query = vm.name.trim()
@@ -344,6 +372,9 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
             onDismiss = { confirmDiscard = false },
         )
     }
+    if (importOpen) {
+        ImportDialog(vm = vm, onDismiss = { importOpen = false })
+    }
     if (pasteOpen) {
         PasteIngredientsDialog(
             onAdd = vm::pasteIngredients,
@@ -488,5 +519,61 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
         modifier = modifier,
+    )
+}
+
+@Composable
+private fun ImportDialog(vm: MealEditViewModel, onDismiss: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    // Start with a web address from the clipboard, if one was just copied.
+    var url by remember {
+        mutableStateOf(clipboard.getText()?.text?.let { RecipeImporter.findUrl(it) }.orEmpty())
+    }
+    AlertDialog(
+        onDismissRequest = { if (!vm.importing) onDismiss() },
+        title = { Text("Import a recipe") },
+        text = {
+            Column {
+                Text(
+                    "Paste the web address of a recipe. The name, servings, ingredients, steps, photo and " +
+                        "nutrition are filled in when the site provides them.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it; vm.importError = null },
+                    placeholder = { Text("https://…") },
+                    singleLine = true,
+                    enabled = !vm.importing,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { if (url.isNotBlank()) vm.importFrom(url, onDismiss) }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (vm.importing) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Reading the recipe…")
+                    }
+                }
+                vm.importError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp))
+                }
+                Text(
+                    "Tip: in your browser you can also tap Share → Meal Planner on a recipe page.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = url.isNotBlank() && !vm.importing, onClick = { vm.importFrom(url, onDismiss) }) {
+                Text("Import")
+            }
+        },
+        dismissButton = { TextButton(enabled = !vm.importing, onClick = onDismiss) { Text("Cancel") } },
     )
 }

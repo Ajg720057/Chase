@@ -1,5 +1,6 @@
 package com.chase.mealplan.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -55,10 +56,16 @@ class Navigator(private val nav: NavHostController) {
         nav.navigate("meal/$mealId?entryId=${entryId ?: -1}")
 
     /** Opens the editor. Pass [date]+[slot] to add to the plan, [entryId] to swap a planned meal. */
-    fun edit(mealId: Long? = null, date: LocalDate? = null, slot: Slot? = null, entryId: Long? = null) =
-        nav.navigate(
-            "edit?mealId=${mealId ?: -1}&date=${date ?: ""}&slot=${slot?.name ?: ""}&entryId=${entryId ?: -1}",
-        )
+    fun edit(
+        mealId: Long? = null,
+        date: LocalDate? = null,
+        slot: Slot? = null,
+        entryId: Long? = null,
+        importUrl: String? = null,
+    ) = nav.navigate(
+        "edit?mealId=${mealId ?: -1}&date=${date ?: ""}&slot=${slot?.name ?: ""}&entryId=${entryId ?: -1}" +
+            "&importUrl=${Uri.encode(importUrl.orEmpty())}",
+    )
 
     fun groceryTab() = nav.navigate(Tab.GROCERY.route) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
@@ -68,7 +75,7 @@ class Navigator(private val nav: NavHostController) {
 }
 
 @Composable
-fun MealPlanNavHost(showNextWeek: Int = 0) {
+fun MealPlanNavHost(showNextWeek: Int = 0, importUrl: String? = null, onImportHandled: () -> Unit = {}) {
     val app = LocalContext.current.applicationContext as MealPlanApp
     val vm: MainViewModel = viewModel(factory = viewModelFactory { initializer { MainViewModel(app) } })
     val nav = rememberNavController()
@@ -79,6 +86,14 @@ fun MealPlanNavHost(showNextWeek: Int = 0) {
 
     LaunchedEffect(vm) {
         vm.messages.collect { snackbar.showSnackbar(it) }
+    }
+    // A recipe page shared from the browser: open a new meal filled in from it.
+    val graphReady = backStack != null
+    LaunchedEffect(importUrl, graphReady) {
+        if (importUrl != null && graphReady) {
+            navigator.edit(importUrl = importUrl)
+            onImportHandled()
+        }
     }
     // Opened from the weekly reminder: show next week's plan.
     LaunchedEffect(showNextWeek) {
@@ -143,12 +158,13 @@ fun MealPlanNavHost(showNextWeek: Int = 0) {
                 )
             }
             composable(
-                "edit?mealId={mealId}&date={date}&slot={slot}&entryId={entryId}",
+                "edit?mealId={mealId}&date={date}&slot={slot}&entryId={entryId}&importUrl={importUrl}",
                 arguments = listOf(
                     navArgument("mealId") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("date") { type = NavType.StringType; defaultValue = "" },
                     navArgument("slot") { type = NavType.StringType; defaultValue = "" },
                     navArgument("entryId") { type = NavType.LongType; defaultValue = -1L },
+                    navArgument("importUrl") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
                 val args = entry.arguments!!
@@ -161,6 +177,7 @@ fun MealPlanNavHost(showNextWeek: Int = 0) {
                                 date = args.getString("date").orEmpty().takeIf { it.isNotEmpty() }?.let(LocalDate::parse),
                                 slot = args.getString("slot").orEmpty().takeIf { it.isNotEmpty() }?.let(Slot::valueOf),
                                 entryId = args.getLong("entryId").takeIf { it >= 0 },
+                                importUrl = args.getString("importUrl").orEmpty().takeIf { it.isNotEmpty() },
                             )
                         }
                     },

@@ -13,6 +13,7 @@ import com.chase.mealplan.data.MealEntity
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.grocery.IngredientLine
 import com.chase.mealplan.grocery.Ingredients
+import com.chase.mealplan.importer.RecipeImporter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -38,6 +39,7 @@ class MealEditViewModel(
     val date: LocalDate?,
     val slot: Slot?,
     val entryId: Long?,
+    importUrl: String? = null,
 ) : ViewModel() {
     private val repo = app.repo
     private var nextRowId = 0L
@@ -62,6 +64,11 @@ class MealEditViewModel(
     var eaters by mutableStateOf<Set<Int>?>(null)
     val people = app.settings.people.value
 
+    /** Web import in progress, and the last problem it hit. */
+    var importing by mutableStateOf(false)
+        private set
+    var importError by mutableStateOf<String?>(null)
+
     var dirty by mutableStateOf(false)
         private set
     var importingPhoto by mutableStateOf(false)
@@ -77,6 +84,52 @@ class MealEditViewModel(
             viewModelScope.launch { repo.getMeal(mealId)?.let(::fill) }
         } else {
             ingredients += IngredientRow(nextRowId++)
+        }
+        importUrl?.let(::importFrom)
+    }
+
+    /**
+     * Fills the form from a recipe web page. Keeps a name you've typed, adds the page's
+     * ingredients in place of empty rows, and only fills nutrition and the photo if they're blank.
+     */
+    fun importFrom(url: String, onDone: () -> Unit = {}) {
+        if (importing) return
+        importing = true
+        importError = null
+        viewModelScope.launch {
+            try {
+                val r = RecipeImporter.fetch(url)
+                if (name.isBlank()) r.name?.let { name = it }
+                r.servings?.let { servings = it.toString() }
+                if (r.ingredients.isNotEmpty()) {
+                    ingredients.removeAll { it.name.isBlank() && it.amount.isBlank() }
+                    r.ingredients.forEach { ingredients += IngredientRow(nextRowId++, it.amount, it.name) }
+                }
+                if (r.instructions.isNotBlank()) {
+                    recipe = if (recipe.isBlank()) r.instructions else recipe.trimEnd() + "\n\n" + r.instructions
+                }
+                if (calories.isBlank() && r.calories != null) {
+                    calories = r.calories.asText()
+                    protein = r.protein.asText()
+                    carbs = r.carbs.asText()
+                    fat = r.fat.asText()
+                }
+                if (photo == null && r.imageUrl != null) {
+                    val tmp = java.io.File(app.cacheDir, "import/${System.currentTimeMillis()}.img")
+                    if (RecipeImporter.downloadImage(r.imageUrl, tmp)) {
+                        app.photos.import(android.net.Uri.fromFile(tmp))?.let { photo = it }
+                    }
+                    tmp.delete()
+                }
+                dirty = true
+                onDone()
+            } catch (e: RecipeImporter.ImportException) {
+                importError = e.message
+            } catch (e: Exception) {
+                importError = "Something went wrong reading that page."
+            } finally {
+                importing = false
+            }
         }
     }
 
@@ -138,7 +191,7 @@ class MealEditViewModel(
 
     fun removePhoto() { photo = null; dirty = true }
 
-    fun canSave() = name.isNotBlank() && !importingPhoto
+    fun canSave() = name.isNotBlank() && !importingPhoto && !importing
 
     fun save(onSaved: () -> Unit) {
         val draft = MealDraft(

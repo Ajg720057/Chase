@@ -58,7 +58,7 @@ class Backup(private val context: Context, private val db: AppDatabase) {
     private fun PlanEntity.toJson() = JSONObject().apply {
         put("id", id); put("parentId", parentId ?: JSONObject.NULL); put("title", title)
         put("details", details); put("scope", scope.name); put("day", day)
-        put("startMinute", startMinute ?: JSONObject.NULL); put("status", status.name)
+        put("startMinute", startMinute ?: JSONObject.NULL); put("endMinute", endMinute ?: JSONObject.NULL); put("status", status.name)
         put("linkToLifeBoard", linkToLifeBoard); put("sortOrder", sortOrder); put("createdAt", createdAt)
     }
 
@@ -67,6 +67,7 @@ class Backup(private val context: Context, private val db: AppDatabase) {
         details = optString("details"),
         scope = runCatching { Scope.valueOf(optString("scope")) }.getOrDefault(Scope.DAY),
         day = getLong("day"), startMinute = optIntOrNull("startMinute"),
+        endMinute = optIntOrNull("endMinute"),
         status = runCatching { PlanStatus.valueOf(optString("status")) }.getOrDefault(PlanStatus.PLANNED),
         linkToLifeBoard = optBoolean("linkToLifeBoard"), sortOrder = optLong("sortOrder"),
         createdAt = optLong("createdAt"),

@@ -113,14 +113,14 @@ fun PlanCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                val start = plan.startMinute
-                if (start != null || item.todosTotal > 0 || item.subPlans > 0 || plan.linkToLifeBoard) {
+                val time = Format.timeRange(plan)
+                if (time != null || item.todosTotal > 0 || item.subPlans > 0 || plan.linkToLifeBoard) {
                     Row(
                         Modifier.padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (start != null) Badge(Icons.Filled.Schedule, Format.minuteOfDay(start))
+                        if (time != null) Badge(Icons.Filled.Schedule, time)
                         if (item.todosTotal > 0) Badge(Icons.Filled.Checklist, "${item.todosDone}/${item.todosTotal}")
                         if (item.subPlans > 0) Badge(Icons.Filled.AccountTree, item.subPlans.toString())
                         if (plan.linkToLifeBoard) Badge(Icons.Filled.Link, "LifeBoard")

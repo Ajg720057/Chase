@@ -33,8 +33,10 @@ from before the PlanBoard link can't receive to-dos.
 - Colored stripes tell plans apart: purple for month plans, blue for week plans, teal for day plans.
 
 **Plans**
-- A title, details, and a date. Day plans can have a time. Switch a plan between
-  Day / Week / Month any time.
+- A title, details, and a date. Switch a plan between Day / Week / Month any time.
+- Day plans can have a start time and, if there's a set finish, an optional end time.
+  PlanBoard shows how long it lasts (e.g. "1 hr 30 min"); an end earlier than the start
+  means it runs past midnight.
 - **Status**: Planned → In progress → Done. Tap the circle on any plan card to move it along.
 - **Break it down**: add week or day plans under a month plan, day plans under a week plan, or
   steps under a day plan. Sub-plans show on their own dates too, marked "Part of …".
@@ -61,7 +63,7 @@ from before the PlanBoard link can't receive to-dos.
 - Choose what to include: to-dos, plan details, progress log, finished plans, and days with
   nothing planned.
 - The PDF lists the month goals and week plans for those dates, then goes day by day with
-  times, details and to-do checkboxes. Save it anywhere (Downloads, Google Drive…), then
+  start–end times and durations, details and to-do checkboxes. Save it anywhere (Downloads, Google Drive…), then
   open or share it straight away.
 
 **Backup**

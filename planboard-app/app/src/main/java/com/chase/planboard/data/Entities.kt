@@ -51,6 +51,11 @@ data class PlanEntity(
     val day: Long,
     /** Minutes after midnight for a day plan with a set time, otherwise null. */
     val startMinute: Int? = null,
+    /**
+     * Optional end time, in minutes after midnight, for a day plan that has a start time.
+     * An end at or before the start means the plan runs past midnight.
+     */
+    val endMinute: Int? = null,
     val status: PlanStatus = PlanStatus.PLANNED,
     /** When on, every to-do added to this plan is also sent to LifeBoard. */
     val linkToLifeBoard: Boolean = false,

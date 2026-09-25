@@ -111,12 +111,18 @@ class PlanEditViewModel(
             scope = scope,
             day = Periods.align(scope, it.startDate).toEpochDay(),
             startMinute = if (scope == Scope.DAY) it.startMinute else null,
+            endMinute = if (scope == Scope.DAY) it.endMinute else null,
         )
     }
 
     fun setDate(date: LocalDate) = mutate { it.copy(day = Periods.align(it.scope, date).toEpochDay()) }
 
-    fun setTime(minuteOfDay: Int?) = mutate { it.copy(startMinute = minuteOfDay) }
+    /** Clearing the start time also clears the end time, which only makes sense after a start. */
+    fun setTime(minuteOfDay: Int?) = mutate {
+        it.copy(startMinute = minuteOfDay, endMinute = if (minuteOfDay == null) null else it.endMinute)
+    }
+
+    fun setEndTime(minuteOfDay: Int?) = mutate { it.copy(endMinute = if (it.startMinute == null) null else minuteOfDay) }
 
     fun setStatus(status: PlanStatus) = mutate { it.copy(status = status) }
 

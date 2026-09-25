@@ -12,6 +12,8 @@ import android.text.TextPaint
 import com.chase.planboard.data.PlanStatus
 import com.chase.planboard.data.Scope
 import com.chase.planboard.data.TodoEntity
+import com.chase.planboard.data.durationMinutes
+import com.chase.planboard.data.endsNextDay
 import com.chase.planboard.ui.common.Format
 import java.io.OutputStream
 import java.time.LocalDate
@@ -68,7 +70,19 @@ object ItineraryPdf {
                         w.text("Nothing planned", paint(10f, color = MUTED, italic = true), indent = TIME_COL, after = 6f)
                     }
                     day.plans.forEach { p ->
-                        w.plan(p, timeLabel = p.plan.startMinute?.let { Format.minuteOfDay(it) } ?: "Any time")
+                        val start = p.plan.startMinute
+                        val end = p.plan.endMinute
+                        w.plan(
+                            p,
+                            subtitle = p.plan.durationMinutes?.let { d ->
+                                Format.duration(d) + if (p.plan.endsNextDay) ", ends next day" else ""
+                            },
+                            timeLabel = when {
+                                start == null -> "Any time"
+                                end == null -> Format.minuteOfDay(start)
+                                else -> "${Format.minuteOfDay(start)}\n– ${Format.minuteOfDay(end)}"
+                            },
+                        )
                     }
                 }
             }
@@ -187,10 +201,9 @@ object ItineraryPdf {
             val title = layout(p.title.ifBlank { "Untitled plan" }, titlePaint, bodyW)
             ensure(title.height + 30f)
 
-            if (timeLabel != null) {
-                val t = layout(timeLabel, paint(10f, bold = true, color = MUTED), TIME_COL - 8f)
-                draw(t, left, y + 1f)
-            }
+            val blockTop = y
+            val timeLayout = timeLabel?.let { layout(it, paint(10f, bold = true, color = MUTED), TIME_COL - 8f) }
+            timeLayout?.let { draw(it, left, y + 1f) }
             canvas.drawRoundRect(
                 left + indent, y + 3f, left + indent + 5f, y + 3f + title.height - 4f, 2f, 2f,
                 Paint(Paint.ANTI_ALIAS_FLAG).apply { color = scopeColor(p.scope) },
@@ -217,6 +230,10 @@ object ItineraryPdf {
                 item.notes.forEach { n ->
                     block("${Format.toDate(n.createdAt).format(shortDate)}: ${n.text}", paint(9f, italic = true, color = MUTED), bodyX, bodyW)
                 }
+            }
+            // Don't let a two-line time ("9:00 AM – 10:30 AM") run into the next plan.
+            if (timeLayout != null && y < blockTop + timeLayout.height + 1f && y > blockTop) {
+                y = blockTop + timeLayout.height + 1f
             }
             y += 10f
         }

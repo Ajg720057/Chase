@@ -65,3 +65,23 @@ fun PlanEntity.isIn(scope: Scope, date: LocalDate, firstDay: DayOfWeek = Periods
     this.scope == scope && Periods.align(scope, LocalDate.ofEpochDay(day), firstDay) == Periods.align(scope, date, firstDay)
 
 val PlanEntity.startDate: LocalDate get() = LocalDate.ofEpochDay(day)
+
+/**
+ * How long a plan with a start and end time lasts, in minutes. An end at or before the
+ * start runs past midnight, so 10 PM to 1 AM is 3 hours. Null without both times.
+ */
+val PlanEntity.durationMinutes: Int?
+    get() {
+        val start = startMinute ?: return null
+        val end = endMinute ?: return null
+        val diff = Math.floorMod(end - start, 24 * 60)
+        return if (diff == 0) 24 * 60 else diff
+    }
+
+/** True when the plan's end time falls on the day after it starts. */
+val PlanEntity.endsNextDay: Boolean
+    get() {
+        val start = startMinute ?: return false
+        val end = endMinute ?: return false
+        return end <= start
+    }

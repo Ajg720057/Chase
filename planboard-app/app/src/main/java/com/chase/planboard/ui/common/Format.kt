@@ -3,6 +3,7 @@ package com.chase.planboard.ui.common
 import com.chase.planboard.data.Periods
 import com.chase.planboard.data.PlanEntity
 import com.chase.planboard.data.Scope
+import com.chase.planboard.data.endsNextDay
 import com.chase.planboard.data.startDate
 import java.time.Instant
 import java.time.LocalDate
@@ -59,6 +60,26 @@ object Format {
     fun period(plan: PlanEntity): String = period(plan.scope, plan.startDate)
 
     fun minuteOfDay(minute: Int): String = LocalTime.of(minute / 60, minute % 60).format(time)
+
+    /** "45 min", "1 hr", "1 hr 30 min", "2 hrs 15 min". */
+    fun duration(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        val hours = when (h) {
+            0 -> null
+            1 -> "1 hr"
+            else -> "$h hrs"
+        }
+        return listOfNotNull(hours, if (m > 0 || h == 0) "$m min" else null).joinToString(" ")
+    }
+
+    /** "9:00 AM", or "9:00 AM – 10:30 AM" when the plan has an end time. */
+    fun timeRange(plan: PlanEntity): String? {
+        val start = plan.startMinute ?: return null
+        val end = plan.endMinute ?: return minuteOfDay(start)
+        val nextDay = if (plan.endsNextDay) " (next day)" else ""
+        return "${minuteOfDay(start)} – ${minuteOfDay(end)}$nextDay"
+    }
 
     fun time(millis: Long): String = toDateTime(millis).format(time)
 

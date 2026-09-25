@@ -75,6 +75,8 @@ import com.chase.planboard.data.PlanNoteEntity
 import com.chase.planboard.data.PlanStatus
 import com.chase.planboard.data.Scope
 import com.chase.planboard.data.TodoEntity
+import com.chase.planboard.data.durationMinutes
+import com.chase.planboard.data.endsNextDay
 import com.chase.planboard.data.startDate
 import com.chase.planboard.ui.Navigator
 import com.chase.planboard.ui.common.ConfirmDialog
@@ -104,6 +106,7 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
     var menuOpen by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
+    var showEndTime by remember { mutableStateOf(false) }
     var showDuplicate by remember { mutableStateOf(false) }
     var showRepeat by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
@@ -215,19 +218,15 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
                             Spacer(Modifier.width(6.dp))
                             Text(Format.period(plan))
                         }
-                        if (plan.scope == Scope.DAY) {
-                            val minute = plan.startMinute
-                            OutlinedButton(onClick = { showTime = true }) {
-                                Icon(Icons.Filled.Schedule, null)
-                                Spacer(Modifier.width(6.dp))
-                                Text(minute?.let { Format.minuteOfDay(it) } ?: "Add time")
-                            }
-                            if (minute != null) {
-                                IconButton(onClick = { vm.setTime(null) }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Clear time")
-                                }
-                            }
-                        }
+                    }
+                    if (plan.scope == Scope.DAY) {
+                        TimeRow(
+                            plan = plan,
+                            onPickStart = { showTime = true },
+                            onPickEnd = { showEndTime = true },
+                            onClearStart = { vm.setTime(null) },
+                            onClearEnd = { vm.setEndTime(null) },
+                        )
                     }
                 }
             }
@@ -355,6 +354,16 @@ fun PlanEditScreen(planId: Long, isNew: Boolean, navigator: Navigator) {
                 onDismiss = { showTime = false },
             )
         }
+        if (showEndTime) {
+            // Default to an hour after the start.
+            val minute = plan.endMinute ?: ((plan.startMinute ?: (9 * 60)) + 60) % (24 * 60)
+            TimePickerModal(
+                hour = minute / 60,
+                minute = minute % 60,
+                onPick = { h, m -> vm.setEndTime(h * 60 + m) },
+                onDismiss = { showEndTime = false },
+            )
+        }
         if (showDuplicate) {
             DatePickerModal(
                 initial = Periods.shift(plan.scope, plan.startDate, 1),
@@ -416,6 +425,55 @@ private fun defaultTodoDue(plan: PlanEntity): Long? {
     val minute = plan.startMinute ?: return null
     if (plan.scope != Scope.DAY) return null
     return Format.toMillis(plan.startDate.atTime(minute / 60, minute % 60))
+}
+
+/** Start and optional end time for a day plan, with how long it lasts. */
+@Composable
+private fun TimeRow(
+    plan: PlanEntity,
+    onPickStart: () -> Unit,
+    onPickEnd: () -> Unit,
+    onClearStart: () -> Unit,
+    onClearEnd: () -> Unit,
+) {
+    val start = plan.startMinute
+    val end = plan.endMinute
+    Column(Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = onPickStart) {
+                Icon(Icons.Filled.Schedule, null)
+                Spacer(Modifier.width(6.dp))
+                Text(start?.let { "Starts ${Format.minuteOfDay(it)}" } ?: "Add start time")
+            }
+            if (start != null) {
+                IconButton(onClick = onClearStart) {
+                    Icon(Icons.Filled.Close, contentDescription = "Clear start time")
+                }
+            }
+        }
+        if (start != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onPickEnd) {
+                    Icon(Icons.Filled.Schedule, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(end?.let { "Ends ${Format.minuteOfDay(it)}" } ?: "Add end time")
+                }
+                if (end != null) {
+                    IconButton(onClick = onClearEnd) {
+                        Icon(Icons.Filled.Close, contentDescription = "Clear end time")
+                    }
+                }
+            }
+            Text(
+                plan.durationMinutes?.let { d ->
+                    "Lasts ${Format.duration(d)}" + if (plan.endsNextDay) ", ending the next day" else ""
+                } ?: "No set end time (optional)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Onesie body -->
+    <path
+        android:fillColor="#2D6A9F"
+        android:pathData="M44,32 Q54,40 64,32 L76,38 L72,50 L66,48 L66,68 Q66,74 60,76 L58,76 L56,70 L52,70 L50,76 L48,76 Q42,74 42,68 L42,48 L36,50 L32,38 Z" />
+    <!-- Snaps -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,50m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0 M54,58m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+</vector>

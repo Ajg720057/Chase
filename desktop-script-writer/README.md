@@ -9,11 +9,13 @@ built in around it.
 - **From its claude.ai link.** Open it in your browser. Projects save to your account as you
   type, and the **Assistant** can give you AI notes on your scenes, loglines, structure and
   characters.
-- **As a file on your computer.** Download [`dist/Draftroom.html`](dist/Draftroom.html) and
-  double-click it. It opens in your browser and works offline. Projects save in that browser,
+- **As a file on your computer.** Download [`dist/Draftroom.html`](dist/Draftroom.html), save it
+  somewhere permanent (on Windows, your Documents folder), and double-click it. It opens in Edge or
+  Chrome. It opens in your browser and works offline. Projects save in that browser,
   and the Assistant falls back to writing prompts (it has no AI notes). PDF export needs an
-  internet connection the first time, to load its PDF library; offline, use **Export → Print…**
-  instead.
+  internet connection, to load its PDF library; offline, use **Export → Print…** and pick
+  *Microsoft Print to PDF* on Windows. Keep opening the file from the same place in the same
+  browser, because that browser holds your saved projects.
 
 ## What's inside
 
@@ -32,12 +34,13 @@ built in around it.
 
 - **Enter** starts the likely next element: scene heading → action, character → dialogue,
   parenthetical → dialogue, dialogue → action. Enter on an empty line turns it back into action.
-- **Tab / Shift+Tab** changes the current element; **Alt/⌥ + 1–7** sets one directly.
+- **Tab / Shift+Tab** changes the current element; **Alt + 1–7** (⌥ + 1–7 on a Mac) sets one directly.
 - Typing `INT.` or `EXT.` makes a scene heading. Locations you've used are suggested, then times
   of day after ` - `. Character names are suggested from the script and your cast list, and
   typing `(` after a name offers V.O., O.S. and CONT'D.
-- Parentheticals close themselves. **Ctrl/⌘ + B / I / U** adds bold, italic or underline.
-  **Ctrl/⌘ + Z** undoes.
+- Parentheticals close themselves. **Ctrl + B / I / U** adds bold, italic or underline.
+  **Ctrl + Z** undoes, and **Ctrl + Y** redoes (⌘ instead of Ctrl on a Mac). Shortcut labels in
+  the app match your computer.
 - Pasting a scene from any Fountain or plain-text screenplay formats it.
 - **See pages** shows the script paginated exactly as it will print, including (MORE) and
   (CONT'D) across page breaks.

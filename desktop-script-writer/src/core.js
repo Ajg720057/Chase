@@ -10,6 +10,11 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const words = (s) => (String(s || '').match(/[A-Za-z0-9'’-]+/g) || []).length;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+// Shortcut labels follow the platform: Alt/Ctrl on Windows and Linux, ⌥/⌘ on a Mac.
+const IS_MAC = /Mac|iPhone|iPad/.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent);
+const KEY = IS_MAC
+  ? { alt: '⌥', altPlus: '⌥', mod: '⌘', modPlus: '⌘', shift: '⇧ ', redo: '⌘ + Shift + Z' }
+  : { alt: 'Alt', altPlus: 'Alt+', mod: 'Ctrl', modPlus: 'Ctrl+', shift: 'Shift+', redo: 'Ctrl + Y (or Ctrl + Shift + Z)' };
 
 function getPath(obj, path) {
   return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);

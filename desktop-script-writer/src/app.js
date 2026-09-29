@@ -786,7 +786,7 @@ Views.script = {
     return `<div class="script-view ${state.focus ? 'focus' : ''}" id="sv">
       <nav class="nav" id="scene-nav" aria-label="Scenes"></nav>
       <div class="desk">
-        <div class="toolbar"><div class="els" id="els" ${state.preview ? 'hidden' : ''}>${ELEMENTS.map(([k, label], n) => `<button data-el="${k}" aria-pressed="false" title="${label} (Alt+${n + 1})">${label}<kbd>⌥${n + 1}</kbd></button>`).join('')}</div>
+        <div class="toolbar"><div class="els" id="els" ${state.preview ? 'hidden' : ''}>${ELEMENTS.map(([k, label], n) => `<button data-el="${k}" aria-pressed="false" title="${label} (${KEY.altPlus}${n + 1})">${label}<kbd>${KEY.altPlus}${n + 1}</kbd></button>`).join('')}</div>
           <span style="flex:1">${state.preview ? '<span class="muted" style="font-size:13px">Pages as they\'ll print: US Letter, Courier 12pt.</span>' : ''}</span>
           <button class="btn small ${state.preview ? 'primary' : ''}" data-act="preview" aria-pressed="${state.preview}">${state.preview ? 'Back to writing' : 'See pages'}</button>
           <button class="btn small" data-act="focus" aria-pressed="${state.focus}">${state.focus ? 'Show panels' : 'Focus'}</button></div>
@@ -827,7 +827,7 @@ function refreshScriptChrome() {
   const i = c ? c.i : 0;
   const page = lay.srcPage[i] || 1;
   const target = P.mode === 'film' ? P.targetPages : TV_STRUCTURE[P.tvFormat].at(-1)[2];
-  $('#status').innerHTML = `<span>Page <b>${lay.pageCount ? page : 0}</b> of ${lay.pageCount} (~${target})</span><span><b>${lay.scenes.length}</b> scenes</span><span><b>${an.words.toLocaleString()}</b> words</span><span>~<b>${lay.pageCount}</b> min</span><span>${esc(P.revision)} draft</span><span class="muted">Tab: next element · Enter: new line · ⌥1–7: set element</span>`;
+  $('#status').innerHTML = `<span>Page <b>${lay.pageCount ? page : 0}</b> of ${lay.pageCount} (~${target})</span><span><b>${lay.scenes.length}</b> scenes</span><span><b>${an.words.toLocaleString()}</b> words</span><span>~<b>${lay.pageCount}</b> min</span><span>${esc(P.revision)} draft</span><span class="muted">Tab: next element · Enter: new line · ${KEY.altPlus}1–7: set element</span>`;
   // Scene navigator
   let html = '', n = 0;
   P.script.forEach((b, k) => {
@@ -881,7 +881,7 @@ function renderCompanion(i, force) {
     <section><h3>Script notes ${issues.length ? `<span class="pill warn">${issues.length}</span>` : ''}</h3>
       ${issues.length ? `<div class="lints">${issues.slice(0, 6).map((l) => `<button data-jump="${l.i}"><span class="sev ${l.sev}"></span><span>${esc(l.msg)}</span></button>`).join('')}</div>` : '<p class="muted" style="font-size:13px;margin:0">Nothing flagged in this scene.</p>'}</section>
     <section><h3>Stuck?</h3><div class="prompt" style="background:var(--surface-2)">${esc(stuck)}</div><button class="btn small" data-act="stuck" style="margin-top:8px">Another prompt</button></section>
-    <section><h3>Keys</h3><div class="kbd" style="grid-template-columns:auto 1fr;font-size:12.5px"><kbd class="k">Tab</kbd><span>Next element type</span><kbd class="k">Enter</kbd><span>New element (smart)</span><kbd class="k">⇧ Enter</kbd><span>Line break</span><kbd class="k">⌥1–7</kbd><span>Set element</span><kbd class="k">Ctrl/⌘ B I U</kbd><span>Bold, italic, underline</span></div></section>`;
+    <section><h3>Keys</h3><div class="kbd" style="grid-template-columns:auto 1fr;font-size:12.5px"><kbd class="k">Tab</kbd><span>Next element type</span><kbd class="k">Enter</kbd><span>New element (smart)</span><kbd class="k">${KEY.shift}Enter</kbd><span>Line break</span><kbd class="k">${KEY.altPlus}1–7</kbd><span>Set element</span><kbd class="k">${KEY.modPlus}B / I / U</kbd><span>Bold, italic, underline</span></div></section>`;
 }
 
 function pagesHTML(withTitle) {
@@ -962,9 +962,9 @@ Views.guide = {
         <kbd class="k">Shift + Tab</kbd><span>Change it the other way.</span>
         <kbd class="k">Enter on empty line</kbd><span>Turns an empty character or dialogue line back into action.</span>
         <kbd class="k">Shift + Enter</kbd><span>Line break inside action or dialogue.</span>
-        <kbd class="k">Alt/⌥ + 1–7</kbd><span>Scene heading, action, character, parenthetical, dialogue, transition, act/section.</span>
-        <kbd class="k">Ctrl/⌘ + B, I, U</kbd><span>Bold, italic, underline the selection.</span>
-        <kbd class="k">Ctrl/⌘ + Z</kbd><span>Undo. Ctrl/⌘ + Shift + Z to redo.</span></div></div>
+        <kbd class="k">${KEY.alt} + 1–7</kbd><span>Scene heading, action, character, parenthetical, dialogue, transition, act/section.</span>
+        <kbd class="k">${KEY.mod} + B, I, U</kbd><span>Bold, italic, underline the selection.</span>
+        <kbd class="k">${KEY.mod} + Z</kbd><span>Undo. ${KEY.redo} to redo.</span></div></div>
         <div class="panel"><h2 class="sec">Shortcuts that type for you</h2><div class="kbd">
         <span>INT. / EXT.</span><span>Start an action line with INT. or EXT. and it becomes a scene heading.</span>
         <span>Locations</span><span>In a scene heading, locations you've used before are suggested. Tab accepts.</span>

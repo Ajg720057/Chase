@@ -1,0 +1,2719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Draftroom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: an app shell. Section rail on the left, the working surface in the middle
+   (a real 8.5" script page in the editor), and a collapsible assistant on the right. */
+:root {
+  --bg: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f4f5f8;
+  --ink: #171b24;
+  --muted: #5a6373;
+  --line: #d3d7df;
+  --accent: #2344d2;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2e7fc;
+  --hl: #ffe06a;
+  --hl-soft: rgba(255, 224, 106, 0.45);
+  --paper: #ffffff;
+  --paper-ink: #121212;
+  --ok: #1d7f46;
+  --warn: #9a5c00;
+  --crit: #bf3328;
+  --shadow: 0 1px 2px rgba(20, 26, 40, 0.06), 0 6px 24px rgba(20, 26, 40, 0.07);
+
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-script: "Courier Prime", "Courier New", Courier, monospace;
+
+  --r: 6px;
+  --rail: 196px;
+  --drawer: 380px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1217; --surface: #171b22; --surface-2: #1e232c; --ink: #e6e8ed; --muted: #9aa2b1;
+    --line: #2a303b; --accent: #8199ff; --accent-ink: #0b0e14; --accent-soft: #222b4b;
+    --hl: #e5c446; --hl-soft: rgba(229, 196, 70, 0.22); --paper: #1b1f27; --paper-ink: #e8e7e3;
+    --ok: #4cc27f; --warn: #e2a53c; --crit: #f06e62;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 24px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1217; --surface: #171b22; --surface-2: #1e232c; --ink: #e6e8ed; --muted: #9aa2b1;
+  --line: #2a303b; --accent: #8199ff; --accent-ink: #0b0e14; --accent-soft: #222b4b;
+  --hl: #e5c446; --hl-soft: rgba(229, 196, 70, 0.22); --paper: #1b1f27; --paper-ink: #e8e7e3;
+  --ok: #4cc27f; --warn: #e2a53c; --crit: #f06e62;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 24px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-ui); }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- shell ---------- */
+#app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.topbar {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0;
+}
+.brand { font-family: var(--f-display); font-weight: 800; font-size: 22px; letter-spacing: 0.02em; text-transform: uppercase; }
+.brand small { font-family: var(--f-ui); font-weight: 500; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin-left: 6px; }
+.proj-title { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
+.proj-title strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.save-state { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.save-state.err { color: var(--crit); }
+.topbar .actions { display: flex; gap: 6px; align-items: center; }
+
+.body { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr) auto; min-height: 0; }
+.rail { border-right: 1px solid var(--line); background: var(--surface); padding: 14px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.rail a {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--r); color: var(--ink); text-decoration: none; font-weight: 500;
+}
+.rail a:hover { background: var(--surface-2); }
+.rail a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.rail .meter { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail .sep { height: 1px; background: var(--line); margin: 10px 6px; }
+.rail .hint { font-size: 12px; color: var(--muted); padding: 4px 10px; line-height: 1.45; }
+
+main { overflow: auto; min-width: 0; }
+.view { padding: 24px 16px 64px; max-width: 1080px; margin: 0 auto; }
+.view.wide { max-width: none; }
+
+/* ---------- type & controls ---------- */
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+.vtitle { font-family: var(--f-display); font-weight: 800; font-size: clamp(30px, 4vw, 42px); line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; }
+.lede { color: var(--muted); max-width: 62ch; margin: 8px 0 0; }
+h2.sec { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 13.5px; margin: 0 0 12px; max-width: 65ch; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface);
+  padding: 6px 12px; border-radius: var(--r); cursor: pointer; font-size: 13.5px; font-weight: 500; white-space: nowrap;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.small { padding: 3px 8px; font-size: 12.5px; }
+.btn.danger { color: var(--crit); }
+.btn[disabled] { opacity: 0.5; cursor: default; }
+
+label.f { display: grid; gap: 4px; }
+label.f > span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+label.f > span em { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r);
+  padding: 8px 10px; line-height: 1.45;
+}
+textarea { resize: vertical; min-height: 64px; field-sizing: content; max-height: 60vh; }
+textarea.short { min-height: 42px; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+::placeholder { color: var(--muted); opacity: 0.7; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.stack { display: grid; gap: 14px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spread { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 18px 0 18px; overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 8px 12px; cursor: pointer; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.crit { color: var(--crit); }
+.pill.acc { background: var(--accent-soft); color: var(--accent); }
+.hdr { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; background: var(--hl-soft); border: 1px solid var(--hl); padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 14px; }
+
+/* ---------- home ---------- */
+.logline-card { font-family: var(--f-script); font-size: 17px; line-height: 1.55; padding: 22px 24px; border-left: 4px solid var(--hl); background: var(--surface); border-radius: 0 10px 10px 0; box-shadow: var(--shadow); }
+.logline-card.empty { color: var(--muted); font-family: var(--f-ui); font-size: 15px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.stat b { display: block; font-family: var(--f-display); font-size: 30px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.next { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.next h3 { font-size: 16px; }
+.timeline { position: relative; height: 70px; margin: 8px 6px 0; }
+.timeline .bar { position: absolute; left: 0; right: 0; top: 30px; height: 8px; background: var(--surface-2); border-radius: 4px; border: 1px solid var(--line); }
+.timeline .fill { position: absolute; left: 0; top: 30px; height: 8px; background: var(--accent); border-radius: 4px; }
+.timeline .tick { position: absolute; top: 22px; width: 1px; height: 24px; background: var(--muted); }
+.timeline .tick span { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.timeline .tick.done { background: var(--accent); }
+.timeline .tick.done span { color: var(--ink); font-weight: 600; }
+.timeline .tick:nth-child(even) span { top: -20px; }
+.bars { display: grid; gap: 6px; }
+.bars .b { display: grid; grid-template-columns: 110px 1fr 56px; gap: 8px; align-items: center; font-size: 13px; }
+.bars .b i { display: block; height: 10px; background: var(--accent); border-radius: 3px; min-width: 2px; }
+.bars .b span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.projects { display: grid; gap: 6px; }
+.projects .p { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); flex-wrap: wrap; }
+.projects .p.cur { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- idea / structure ---------- */
+.builder { font-family: var(--f-script); font-size: 16px; line-height: 1.6; padding: 16px 18px; background: var(--surface-2); border-radius: 8px; border: 1px dashed var(--line); }
+.builder mark { background: var(--hl-soft); color: inherit; padding: 0 2px; border-radius: 2px; }
+.builder .gap { color: var(--muted); border-bottom: 1px dashed var(--muted); }
+.beat { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.beat:first-child { border-top: 0; }
+.beat .n { font-family: var(--f-display); font-weight: 800; font-size: 26px; color: var(--muted); line-height: 1; }
+.beat.here .n { color: var(--accent); }
+.beat h3 { font-size: 15px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.beat p { margin: 2px 0 8px; color: var(--muted); font-size: 13.5px; }
+.beat .q { font-style: italic; }
+.acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tension { width: 100%; height: auto; display: block; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.grid th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px; border-bottom: 1px solid var(--line); }
+table.grid td { padding: 4px; vertical-align: top; border-bottom: 1px solid var(--line); }
+table.grid td textarea, table.grid td input { min-height: 38px; padding: 6px 8px; font-size: 13.5px; }
+.scroll-x { overflow-x: auto; }
+
+/* ---------- cast ---------- */
+.cast { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: start; }
+.cast-list { display: grid; gap: 6px; }
+.cast-list button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; cursor: pointer; display: grid; }
+.cast-list button[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.cast-list b { font-family: var(--f-script); text-transform: uppercase; }
+.cast-list small { color: var(--muted); }
+.voice { font-family: var(--f-script); font-size: 14px; background: var(--surface-2); padding: 10px 14px; border-radius: 8px; white-space: pre-wrap; }
+
+/* ---------- scene board ---------- */
+.board { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px 12px;
+  box-shadow: var(--shadow); display: grid; gap: 6px; position: relative;
+}
+.card.dragging { opacity: 0.4; }
+.card.drop { outline: 2px dashed var(--accent); }
+.card .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; min-height: 24px; }
+.card .no { font-family: var(--f-display); font-weight: 800; font-size: 20px; color: var(--accent); }
+.card .slug { font-family: var(--f-script); font-weight: 700; text-transform: uppercase; font-size: 13.5px; border: 0; border-bottom: 1.5px solid var(--crit); border-radius: 0; background: transparent; padding: 2px 0 5px; }
+.card .slug:focus { box-shadow: none; border-bottom-color: var(--accent); }
+.card input.line { border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: transparent; padding: 2px 0; font-size: 13.5px; }
+.card input.line:focus { box-shadow: none; border-bottom-color: var(--accent); }
+.card .lab { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 6px; }
+.card .lab span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; color: var(--muted); text-transform: uppercase; }
+.card .who { font-size: 12px; color: var(--muted); }
+.turn { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.turn button { border: 0; background: none; padding: 1px 8px; font-size: 12px; cursor: pointer; font-family: var(--f-script); }
+.turn button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pile { background: var(--surface-2); border: 1px dashed var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+.pile .card { box-shadow: none; }
+
+/* ---------- script editor ---------- */
+.script-view { display: grid; grid-template-columns: 220px minmax(0, 1fr) 300px; height: 100%; min-height: 0; }
+.script-view.focus { grid-template-columns: 0 minmax(0, 1fr) 0; }
+.script-view.focus .nav, .script-view.focus .companion { display: none; }
+.nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 12px 8px; background: var(--surface); }
+.nav a { display: grid; grid-template-columns: 28px 1fr; gap: 4px; padding: 5px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 12.5px; line-height: 1.35; }
+.nav a:hover { background: var(--surface-2); }
+.nav a.cur { background: var(--hl-soft); }
+.nav a .sn { color: var(--muted); font-variant-numeric: tabular-nums; }
+.nav a .sh { font-family: var(--f-script); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav .sec { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 8px 2px; }
+.desk { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; min-width: 0; }
+.toolbar { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+.toolbar .els { display: flex; gap: 2px; flex-wrap: wrap; }
+.toolbar .els button { border: 1px solid transparent; background: none; border-radius: 5px; padding: 3px 8px; font-size: 12.5px; cursor: pointer; color: var(--muted); }
+.toolbar .els button:hover { background: var(--surface-2); color: var(--ink); }
+.toolbar .els button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+.toolbar .els kbd { font-family: var(--f-ui); font-size: 10px; opacity: 0.7; margin-left: 3px; }
+@media (max-width: 1560px) { .toolbar .els kbd { display: none; } }
+.sheet { overflow: auto; padding: 28px 16px 120px; min-height: 0; container-type: inline-size; }
+/* The page is 49em wide (60 characters of text plus margins), so 16px type gives a true-size page;
+   narrower desks scale the whole page down together. */
+.paper {
+  --ch: 0.6em;
+  font: min(16px, calc((100cqw - 4px) / 49))/1.3 var(--f-script);
+  width: 49em; margin: 0 auto; background: var(--paper); color: var(--paper-ink);
+  padding: 5em 7em 6em 6em; box-shadow: var(--shadow); min-height: 66em;
+  border-left: 6px solid var(--rev, transparent); counter-reset: scene; outline: none; caret-color: var(--accent);
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
+.paper .el { position: relative; min-height: 1.3em; }
+.paper .t-scene { text-transform: uppercase; font-weight: 700; margin-top: 2.6em; counter-increment: scene; }
+.paper .t-scene::before { content: counter(scene); position: absolute; left: -5.5ch; font-weight: 400; color: var(--muted); }
+.paper .t-action { margin-top: 1.3em; }
+.paper .t-character { margin-left: calc(22 * var(--ch)); text-transform: uppercase; margin-top: 1.3em; max-width: calc(38 * var(--ch)); }
+.paper .t-paren { margin-left: calc(16 * var(--ch)); max-width: calc(25 * var(--ch)); }
+.paper .t-dialogue { margin-left: calc(10 * var(--ch)); max-width: calc(35 * var(--ch)); }
+.paper .t-transition { text-align: right; text-transform: uppercase; margin-top: 1.3em; }
+.paper .t-section { font: 600 12px/1.4 var(--f-ui); text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-top: 2.6em; padding-top: 6px; border-top: 1px dashed var(--accent); }
+.paper .el:first-child { margin-top: 0; }
+.paper .el.cur::after {
+  content: attr(data-label); position: absolute; right: -6.6em; top: 0.15em; width: 6em; font: 500 11px/1.2 var(--f-ui);
+  color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 500; text-align: left; pointer-events: none;
+}
+.paper .el.cur.empty::before { content: attr(data-ph); position: absolute; left: 0; color: var(--muted); opacity: 0.6; pointer-events: none; font-weight: 400; }
+.paper .t-scene.cur.empty::before { left: 0; }
+.paper .el.flash { background: var(--hl-soft); transition: background 0.8s; }
+.paper .el.lint { text-decoration: underline wavy var(--warn); text-decoration-skip-ink: none; text-underline-offset: 4px; }
+.status { display: flex; gap: 16px; padding: 6px 14px; border-top: 1px solid var(--line); background: var(--surface); font-size: 12px; color: var(--muted); flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.status b { color: var(--ink); font-weight: 600; }
+.companion { border-left: 1px solid var(--line); overflow-y: auto; padding: 16px; background: var(--surface); display: grid; gap: 18px; align-content: start; }
+.companion h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin-bottom: 6px; }
+.where b { font-family: var(--f-display); font-size: 34px; font-weight: 800; line-height: 1; }
+.where .beatname { font-weight: 600; margin-top: 6px; }
+.where p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.prompt { font-size: 13.5px; padding: 10px 12px; background: var(--hl-soft); border-radius: 8px; line-height: 1.45; }
+.lints { display: grid; gap: 6px; }
+.lints button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; }
+.lints button:hover { border-color: var(--muted); }
+.sev { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--muted); }
+.sev.warn { background: var(--warn); } .sev.tip { background: var(--accent); }
+.ac { position: fixed; z-index: 40; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 4px; min-width: 200px; max-width: 360px; }
+.ac div { padding: 5px 10px; border-radius: 5px; font: 14px var(--f-script); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac div[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+.ac small { display: block; padding: 2px 10px 4px; font: 11px var(--f-ui); color: var(--muted); }
+
+/* ---------- page preview ---------- */
+.pages { display: grid; gap: 24px; justify-content: center; padding: 28px 16px 80px; }
+.pg { width: 8.5in; height: 11in; background: #fff; color: #111; position: relative; box-shadow: var(--shadow); font: 12pt/12pt var(--f-script); }
+.pg .ln { position: absolute; white-space: pre; }
+.pg .pn { position: absolute; right: 1in; top: 0.5in; }
+.pg.title .ln { width: 100%; }
+.zoomwrap { overflow: auto; height: 100%; }
+
+/* ---------- rewrite / guide ---------- */
+.check { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 7px 0; align-items: start; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.check.done span { color: var(--muted); text-decoration: line-through; }
+.kbd { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; font-size: 14px; }
+kbd.k { font: 12px var(--f-ui); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; background: var(--surface-2); white-space: nowrap; }
+.fmt { font-family: var(--f-script); font-size: 14px; background: var(--paper); color: var(--paper-ink); padding: 18px 20px; border-radius: 8px; border: 1px solid var(--line); white-space: pre; overflow-x: auto; line-height: 1.3; }
+.gloss { display: grid; grid-template-columns: 160px 1fr; gap: 8px 16px; font-size: 14px; }
+.gloss dt { font-weight: 600; }
+.gloss dd { margin: 0; color: var(--muted); }
+
+/* ---------- assistant ---------- */
+.drawer { width: var(--drawer); border-left: 1px solid var(--line); background: var(--surface); display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+.drawer[hidden] { display: none !important; }
+.drawer header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.drawer header h2 { font-family: var(--f-display); font-weight: 800; font-size: 20px; text-transform: uppercase; }
+.drawer .out { overflow-y: auto; padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.drawer .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.drawer .presets button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; }
+.drawer .presets button:hover { border-color: var(--accent); color: var(--accent); }
+.drawer form { padding: 12px 16px 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.answer { font-size: 14px; line-height: 1.55; background: var(--surface-2); border-radius: 8px; padding: 12px 14px; overflow-wrap: anywhere; }
+.answer .q { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.answer p { margin: 0 0 8px; } .answer ul, .answer ol { margin: 0 0 8px; padding-left: 20px; }
+.answer pre { font-family: var(--f-script); font-size: 13px; background: var(--paper); color: var(--paper-ink); padding: 10px; border-radius: 6px; white-space: pre-wrap; }
+.answer h4 { margin: 8px 0 4px; font-size: 14px; }
+.deck { font-size: 15px; line-height: 1.5; padding: 16px; border-radius: 8px; background: var(--hl-soft); font-weight: 500; }
+
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 8px; font-size: 13.5px; z-index: 60; box-shadow: var(--shadow); }
+.menu { position: fixed; z-index: 50; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px; display: grid; min-width: 220px; }
+.menu button { text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 5px; cursor: pointer; font-size: 13.5px; }
+.menu button:hover { background: var(--surface-2); }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.menu small { color: var(--muted); padding: 2px 10px 6px; font-size: 11.5px; }
+.confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+#print-root { display: none; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .script-view { grid-template-columns: 0 minmax(0, 1fr) 280px; }
+  .script-view .nav { display: none; }
+}
+@media (max-width: 960px) {
+  .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .rail { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 6px 10px; }
+  .rail .meter, .rail .sep, .rail .hint { display: none; }
+  .rail a { white-space: nowrap; }
+  .drawer { position: fixed; inset: 0 0 0 auto; width: min(100%, var(--drawer)); z-index: 45; box-shadow: var(--shadow); padding-top: env(safe-area-inset-top, 0px); }
+  .script-view { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; }
+  .script-view .companion { border-left: 0; border-top: 1px solid var(--line); max-height: 38vh; }
+  .board, .cast { grid-template-columns: minmax(0, 1fr); }
+  .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .grid2, .grid3, .acts { grid-template-columns: minmax(0, 1fr); }
+  .brand small, .save-state { display: none; }
+  .topbar .actions .btn span.lbl { display: none; }
+  .kbd, .gloss { grid-template-columns: minmax(0, 1fr); }
+  .paper .el.cur::after { display: none; }
+  .script-view .companion { display: none; }
+  .script-view { grid-template-rows: 1fr; }
+  .status .muted { display: none; }
+  .sheet { padding: 12px 8px 80px; }
+  .paper .t-scene::before { left: -4ch; }
+  .bars .b { grid-template-columns: 80px 1fr 44px; }
+}
+
+@media print {
+  @page { size: letter; margin: 0; }
+  body { background: #fff; }
+  #app, .toast, .menu, .ac { display: none !important; }
+  #print-root { display: block; }
+  #print-root .pg { box-shadow: none; break-after: page; margin: 0; }
+}
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">Draftroom<small>screenwriting</small></div>
+    <div class="proj-title"><strong id="proj-name"></strong><span class="save-state" id="save-state"></span></div>
+    <div class="actions">
+      <button class="btn ghost" id="btn-projects" aria-haspopup="menu" title="Projects"><span aria-hidden="true">▤</span><span class="lbl">Projects</span></button>
+      <button class="btn ghost" id="btn-export" aria-haspopup="menu" title="Export and import"><span aria-hidden="true">⇩</span><span class="lbl">Export</span></button>
+      <button class="btn ghost" id="btn-theme" title="Switch light or dark"><span aria-hidden="true">◐</span></button>
+      <button class="btn" id="btn-assist" aria-pressed="false" title="Open the writing assistant"><span aria-hidden="true">✦</span><span class="lbl">Assistant</span></button>
+    </div>
+  </header>
+  <div class="body">
+    <nav class="rail" id="rail" aria-label="Sections"></nav>
+    <main id="main"></main>
+    <aside class="drawer" id="drawer" hidden aria-label="Writing assistant">
+      <header><h2>Assistant</h2><button class="btn ghost small" id="btn-close-assist" aria-label="Close assistant">✕</button></header>
+      <div class="out" id="assist-out"></div>
+      <form id="assist-form">
+        <textarea id="assist-q" class="short" placeholder="Ask about your story, a scene or a character…" rows="2"></textarea>
+        <div class="row" style="justify-content: space-between"><span class="muted" id="assist-note" style="font-size:12px"></span><button class="btn primary" type="submit" id="assist-send">Ask</button></div>
+      </form>
+    </aside>
+  </div>
+</div>
+<div id="print-root"></div>
+<input type="file" id="file-in" accept=".fountain,.txt,.json,.spmd" hidden>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   Utilities
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const words = (s) => (String(s || '').match(/[A-Za-z0-9'’-]+/g) || []).length;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+function getPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  let o = obj;
+  keys.slice(0, -1).forEach((k, i) => {
+    if (o[k] == null || typeof o[k] !== 'object') o[k] = /^\d+$/.test(keys[i + 1]) ? [] : {};
+    o = o[k];
+  });
+  o[keys[keys.length - 1]] = value;
+}
+
+/* =====================================================================
+   Story knowledge: beats, structures, prompts
+   ===================================================================== */
+// Blake Snyder's "Save the Cat!" beats; page numbers are for a 110-page script.
+const BEATS = [
+  ['Opening Image', 1, 1, 'A snapshot of the hero and their world before the story changes them.', 'What single image shows who your hero is before anything happens?'],
+  ['Theme Stated', 5, 5, 'Someone (rarely the hero) voices what the story is really about.', 'Who says the thing your hero isn\'t ready to hear yet?'],
+  ['Set-Up', 1, 10, 'Hero, world, and what\'s missing in their life. Plant what will pay off later.', 'What does your hero want, and what do they actually need?'],
+  ['Catalyst', 12, 12, 'The inciting incident that knocks the hero\'s world off balance.', 'What happens TO your hero that they can\'t ignore?'],
+  ['Debate', 12, 25, 'The hero hesitates. Should I go? What will it cost?', 'What is the hero afraid of losing if they say yes?'],
+  ['Break into Two', 25, 25, 'The hero chooses to enter the new world and pursue the goal.', 'What active choice does the hero make? It must be theirs.'],
+  ['B Story', 30, 30, 'A new relationship that carries the theme: love interest, mentor, rival.', 'Who helps your hero learn the lesson of the theme?'],
+  ['Fun and Games', 30, 55, 'The promise of the premise: the set pieces the trailer is made of.', 'What scenes would an audience buy a ticket to see?'],
+  ['Midpoint', 55, 55, 'A false victory or false defeat. Stakes rise; a clock may start ticking.', 'What changes the game halfway through?'],
+  ['Bad Guys Close In', 55, 75, 'Outside pressure and inside doubt tighten around the hero.', 'How do the hero\'s flaws make things worse?'],
+  ['All Is Lost', 75, 75, 'The lowest point. Something or someone dies, literally or symbolically.', 'What is the worst thing that could happen to your hero right now?'],
+  ['Dark Night of the Soul', 75, 85, 'The hero wallows, then finally grasps the lesson of the theme.', 'What does the hero finally understand about themselves?'],
+  ['Break into Three', 85, 85, 'A and B stories meet; armed with the lesson, the hero acts.', 'What new plan comes from what the hero just learned?'],
+  ['Finale', 85, 110, 'The hero proves they\'ve changed and confronts the central conflict.', 'How does the hero win (or lose) in a way only the changed hero could?'],
+  ['Final Image', 110, 110, 'A mirror of the Opening Image that shows how much has changed.', 'How does your last image answer your first?'],
+];
+const ACTS = [
+  ['a1', 'Act I', 'Setup', 1, 25, 'Who is the hero, what do they want, and what disrupts their world?'],
+  ['a2a', 'Act IIA', 'Rising action', 25, 55, 'What new world or plan do they commit to? What\'s fun about it?'],
+  ['a2b', 'Act IIB', 'Things fall apart', 55, 85, 'How do the stakes rise? What do they lose?'],
+  ['a3', 'Act III', 'Resolution', 85, 110, 'How do they win or lose, and who are they now?'],
+];
+const SEQUENCES = [
+  ['Status quo & inciting incident', 'Establish the hero\'s world; end on the event that disrupts it.'],
+  ['Predicament & lock-in', 'The hero reacts, then commits to the goal. End of Act I.'],
+  ['First obstacle', 'The first, most obvious attempt to solve the problem.'],
+  ['Escalation to midpoint', 'Bigger attempts, bigger failures, leading to the midpoint turn.'],
+  ['Complication', 'A new plan after the midpoint; subplots deepen and cost rises.'],
+  ['Lowest point', 'Everything the hero tried collapses. End of Act II.'],
+  ['New tension & final push', 'A twist or revelation sets up the last attempt.'],
+  ['Climax & resolution', 'The final confrontation, then a glimpse of the new normal.'],
+];
+const TV_STRUCTURE = {
+  'half-hour': [['Cold Open', 1, 3], ['Act One', 3, 14], ['Act Two', 14, 27], ['Tag', 27, 30]],
+  hour: [['Teaser', 1, 5], ['Act One', 5, 16], ['Act Two', 16, 27], ['Act Three', 27, 38], ['Act Four', 38, 49], ['Act Five', 49, 58]],
+};
+const REWRITE_PASSES = [
+  ['Structure', [
+    'The inciting incident lands early enough (film: by about page 12).',
+    'The hero makes an active choice to enter Act II.',
+    'The midpoint changes the direction or the stakes of the story.',
+    'The climax is won or lost by the hero\'s own choice.',
+    'Every scene earns its place. Could two be combined?',
+  ]],
+  ['Character', [
+    'Every character wants something in every scene they\'re in.',
+    'The protagonist changes (or tragically refuses to).',
+    'The antagonist is at least as capable as the hero.',
+    'Cover the names: can you tell who is speaking?',
+  ]],
+  ['Scene', [
+    'Each scene enters late and leaves early.',
+    'Each scene turns: a value shifts from + to – or – to +.',
+    'There is conflict or tension in every scene.',
+  ]],
+  ['Dialogue', [
+    'Subtext over on-the-nose: people rarely say exactly what they mean.',
+    'Greetings, small talk and filler lines are cut.',
+    'Exposition is dramatized, not explained.',
+  ]],
+  ['Polish', [
+    'Action paragraphs are four lines or fewer, in present tense with active verbs.',
+    'Speaking characters appear in CAPS, with an age, the first time we meet them.',
+    'The page count sits in range, and spelling and formatting are clean.',
+  ]],
+];
+const STUCK = [
+  'Write the scene from the point of view of the person who wants the opposite thing.',
+  'What is the worst thing that could happen in this scene? Let it happen.',
+  'Cut the first line and the last line of the scene. Is it better?',
+  'Give a character a secret they are trying to keep for the whole scene.',
+  'What would your hero never say out loud? Make them almost say it.',
+  'Move this scene to a location that makes it harder: a funeral, a car, an elevator.',
+  'Add a clock. What happens if they don\'t finish in the next five minutes?',
+  'Replace one line of dialogue with an action that says the same thing.',
+  'Who is the smartest person in this scene? Let them win.',
+  'Start the scene in the middle of an argument.',
+  'What does the audience know that the character doesn\'t? Use it.',
+  'Let the quietest character in the scene make the decision.',
+  'Write the scene badly, fast, and on purpose. You can fix bad pages; you can\'t fix blank ones.',
+  'What object could carry the emotion of this scene?',
+  'Your hero gets exactly what they want in this scene. What does it cost them?',
+  'End the scene one beat earlier than feels comfortable.',
+  'List five things that could interrupt this scene. Use the most surprising one.',
+  'Have someone lie. Let the audience know it\'s a lie.',
+  'What is the character doing with their hands while they talk?',
+  'Write the next scene as a single paragraph of action, no dialogue.',
+  'Which character has the least power here? Give them a way to take some.',
+  'Read your last page aloud. Cut every line you stumble on.',
+  'Ask: why does this scene have to happen today and not tomorrow?',
+  'Swap who is chasing whom: let the pursued become the pursuer.',
+];
+const REVISIONS = [
+  ['White', 'transparent'], ['Blue', '#6f9fe8'], ['Pink', '#ee9ac2'], ['Yellow', '#f1d34f'], ['Green', '#6fc58c'],
+  ['Goldenrod', '#d9a431'], ['Buff', '#d9c19a'], ['Salmon', '#f29a7c'], ['Cherry', '#d6445f'],
+];
+const ELEMENTS = [
+  ['scene', 'Scene heading', 'INT. LOCATION - DAY'],
+  ['action', 'Action', 'What we see and hear'],
+  ['character', 'Character', 'NAME'],
+  ['paren', 'Parenthetical', '(beat)'],
+  ['dialogue', 'Dialogue', 'What they say'],
+  ['transition', 'Transition', 'CUT TO:'],
+  ['section', 'Act / section', 'ACT ONE (not printed)'],
+];
+const EL = Object.fromEntries(ELEMENTS.map(([k, label, ph]) => [k, { label, ph }]));
+const CYCLE = ['action', 'character', 'dialogue', 'paren', 'transition', 'scene'];
+const NEXT = { scene: 'action', action: 'action', character: 'dialogue', paren: 'dialogue', dialogue: 'action', transition: 'scene', section: 'scene' };
+
+function scale(p, target) { return Math.max(1, Math.round((p * target) / 110)); }
+function pageRange(a, b, target) {
+  const x = scale(a, target), y = scale(b, target);
+  return x === y ? `p. ${x}` : `pp. ${x}–${y}`;
+}
+
+/* =====================================================================
+   Fountain import / export
+   ===================================================================== */
+const SCENE_RE = /^(INT\.?\/EXT|INT\/EXT|I\/E|INT|EXT|EST)[.\s]/i;
+
+function stripComments(t) {
+  return t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\[\[[\s\S]*?\]\]/g, '');
+}
+function isCharacterLine(line) {
+  if (line.startsWith('@')) return true;
+  const name = line.replace(/\(.*?\)/g, '').replace(/\^\s*$/, '').trim();
+  return !!name && /[A-Za-z]/.test(name) && name === name.toUpperCase() && !name.startsWith('!');
+}
+
+function parseFountain(text) {
+  text = stripComments(text.replace(/\r\n?/g, '\n').replace(/\t/g, '    '));
+  let lines = text.split('\n');
+  const title = {};
+  let i = 0;
+  while (i < lines.length && !lines[i].trim()) i++;
+  if (i < lines.length && /^[A-Za-z][A-Za-z ]*:/.test(lines[i])) {
+    let key = null;
+    while (i < lines.length && lines[i].trim()) {
+      const m = lines[i].match(/^([A-Za-z][A-Za-z ]*):\s*(.*)$/);
+      if (m && !/^\s/.test(lines[i])) { key = m[1].trim().toLowerCase(); title[key] = m[2].trim() ? [m[2].trim()] : []; }
+      else if (key) title[key].push(lines[i].trim());
+      i++;
+    }
+    lines = lines.slice(i);
+  }
+  for (const k in title) title[k] = title[k].join('\n');
+  const out = [];
+  const n = lines.length;
+  const blank = (k) => k < 0 || k >= n || !lines[k].trim();
+  let inDialogue = false, lastAction = -2, pendingSynopsis = null;
+  const push = (t, x) => { const b = { id: uid(), t, x }; out.push(b); return b; };
+  for (let k = 0; k < n; k++) {
+    const raw = lines[k], line = raw.trim();
+    if (!line) { inDialogue = false; continue; }
+    if (inDialogue) {
+      if (line.startsWith('(') && line.endsWith(')')) push('paren', line);
+      else push('dialogue', line.replace(/^~/, ''));
+      continue;
+    }
+    const pb = blank(k - 1), nb = blank(k + 1);
+    if (/^={3,}\s*$/.test(line)) continue;
+    if (line.startsWith('#')) { push('section', line.replace(/^#+/, '').trim()); continue; }
+    if (line.startsWith('=')) { pendingSynopsis = line.slice(1).trim(); const last = out[out.length - 1]; if (last && last.t === 'scene' && !last.syn) { last.syn = pendingSynopsis; pendingSynopsis = null; } continue; }
+    if (line.startsWith('!')) { addAction(raw.trimStart().slice(1)); continue; }
+    if (line.startsWith('>') && line.endsWith('<')) { addAction(line.slice(1, -1).trim()); continue; }
+    if (line.startsWith('>')) { push('transition', line.slice(1).trim().toUpperCase()); continue; }
+    if (pb && ((line.startsWith('.') && line.length > 1 && line[1] !== '.') || SCENE_RE.test(line))) {
+      const b = push('scene', (line.startsWith('.') ? line.slice(1) : line).replace(/\s*#[\w.-]+#\s*$/, '').trim().toUpperCase());
+      if (pendingSynopsis) { b.syn = pendingSynopsis; pendingSynopsis = null; }
+      continue;
+    }
+    if (pb && nb && line === line.toUpperCase() && /TO:$/.test(line)) { push('transition', line); continue; }
+    if (pb && !nb && isCharacterLine(line)) { push('character', line.replace(/^@/, '').replace(/\^\s*$/, '').trim()); inDialogue = true; continue; }
+    addAction(raw.trimEnd());
+    function addAction(t) {
+      const last = out[out.length - 1];
+      if (lastAction === k - 1 && last && last.t === 'action') last.x += '\n' + t;
+      else push('action', t);
+      lastAction = k;
+    }
+  }
+  const strip = (s) => (s || '').replace(/(\*{1,3}|_)(?=\S)(.+?)(?<=\S)\1/g, '$2');
+  return {
+    title: strip(title.title || '').replace(/\n/g, ' ').trim(),
+    author: strip(title.author || title.authors || '').replace(/\n/g, ', '),
+    contact: title.contact || '',
+    draftDate: (title['draft date'] || '').replace(/\n/g, ' '),
+    blocks: out,
+  };
+}
+
+function toFountain(p) {
+  const out = [];
+  out.push(`Title: ${p.title || 'Untitled'}`);
+  out.push('Credit: Written by');
+  out.push(`Author: ${p.author || ''}`);
+  if (p.draftDate) out.push(`Draft date: ${p.draftDate}`);
+  if (p.contact) out.push('Contact:\n' + p.contact.split('\n').map((l) => '    ' + l).join('\n'));
+  out.push('');
+  const s = p.script;
+  for (let i = 0; i < s.length; i++) {
+    const b = s[i], x = (b.x || '').trimEnd();
+    const prev = s[i - 1];
+    const inGroup = (b.t === 'dialogue' || b.t === 'paren') && prev && ['character', 'dialogue', 'paren'].includes(prev.t);
+    if (!x && b.t !== 'dialogue') continue;
+    if (!inGroup) out.push('');
+    switch (b.t) {
+      case 'scene': out.push((SCENE_RE.test(x) ? '' : '.') + x.toUpperCase()); break;
+      case 'section': out.push('# ' + x); break;
+      case 'character': out.push((/[A-Za-z]/.test(x) ? '' : '@') + x.toUpperCase()); break;
+      case 'paren': out.push(`(${x.replace(/^\(|\)$/g, '')})`); break;
+      case 'dialogue': out.push(x || '  '); break;
+      case 'transition': out.push(/TO:$/.test(x.toUpperCase()) ? x.toUpperCase() : '> ' + x.toUpperCase()); break;
+      default:
+        out.push(x.split('\n').map((l) => {
+          const t = l.trim();
+          const risky = (t && t === t.toUpperCase() && /[A-Z]/.test(t)) || SCENE_RE.test(t) || /^[.#=>~@!]/.test(t);
+          return risky ? '!' + l : l;
+        }).join('\n'));
+    }
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
+}
+
+/* =====================================================================
+   Screenplay layout: US Letter, Courier 12pt, 6 lines/inch, 54 lines/page
+   ===================================================================== */
+const LAY = { scene: [1.5, 60, 2], action: [1.5, 60, 1], character: [3.7, 38, 1], paren: [3.1, 25, 0], dialogue: [2.5, 35, 0], transition: [1.5, 60, 1] };
+const LPP = 54;
+const RIGHT = 7.5;
+const EMPH = /(\\[*_])|(\*\*\*|\*\*|\*|_)(?=\S)(.+?)(?<=\S)\2/g;
+
+function styled(text) {
+  const out = [];
+  (function walk(s, b, i, u) {
+    let pos = 0, m;
+    const re = new RegExp(EMPH.source, 'g');
+    while ((m = re.exec(s))) {
+      for (const ch of s.slice(pos, m.index)) out.push([ch, b, i, u]);
+      if (m[1]) out.push([m[1][1], b, i, u]);
+      else walk(m[3], b || m[2] === '***' || m[2] === '**', i || m[2] === '***' || m[2] === '*', u || m[2] === '_');
+      pos = m.index + m[0].length;
+    }
+    for (const ch of s.slice(pos)) out.push([ch, b, i, u]);
+  })(text, false, false, false);
+  return out;
+}
+function wrapStyled(text, width) {
+  // Returns an array of lines; each line is an array of [ch, b, i, u].
+  const res = [];
+  for (const para of String(text).split('\n')) {
+    const chars = styled(para);
+    const plain = chars.map((c) => c[0]).join('');
+    if (!plain.trim()) { res.push([]); continue; }
+    let start = 0;
+    const n = plain.length;
+    while (start < n) {
+      let end, next;
+      if (n - start <= width) { end = n; next = n; }
+      else {
+        const cut = plain.lastIndexOf(' ', start + width);
+        if (cut <= start) { end = next = start + width; } else { end = cut; next = cut + 1; }
+      }
+      res.push(chars.slice(start, end));
+      start = next;
+      while (start < n && plain[start] === ' ') start++;
+    }
+  }
+  return res;
+}
+
+function layoutScript(script) {
+  // Build printable blocks from editor blocks.
+  const blocks = [];
+  for (let i = 0; i < script.length; i++) {
+    const b = script[i];
+    const x = (b.x || '').trim() ? b.x : '';
+    if (b.t === 'section') { blocks.push({ kind: 'section', title: x, src: i, lines: [] }); continue; }
+    if (b.t === 'character') {
+      const lines = wrapStyled(x.toUpperCase(), LAY.character[1]).map((c) => ({ x: LAY.character[0], c, kind: 'character', src: i }));
+      let j = i + 1;
+      while (j < script.length && (script[j].t === 'paren' || script[j].t === 'dialogue')) {
+        const s = script[j];
+        if ((s.x || '').trim()) {
+          wrapStyled(s.x, LAY[s.t][1]).forEach((c, k) => lines.push({ x: LAY[s.t][0] + (s.t === 'paren' && k ? 0.1 : 0), c, kind: s.t, src: j }));
+        }
+        j++;
+      }
+      blocks.push({ kind: 'dialogue', lines, space: 1, split: true, src: i, name: x.replace(/\s*\(.*?\)/g, '').trim().toUpperCase() });
+      i = j - 1;
+      continue;
+    }
+    if (!x) continue;
+    if (b.t === 'scene') {
+      blocks.push({ kind: 'scene', lines: wrapStyled(x.toUpperCase(), 60).map((c) => ({ x: 1.5, c, kind: 'scene', src: i })), space: 2, keep: true, src: i, id: b.id });
+    } else if (b.t === 'transition') {
+      blocks.push({ kind: 'transition', lines: [{ x: RIGHT, c: styled(x.toUpperCase()), align: 'right', kind: 'transition', src: i }], space: 1, src: i });
+    } else {
+      const t = b.t === 'paren' || b.t === 'dialogue' ? 'action' : b.t;
+      blocks.push({ kind: 'action', lines: wrapStyled(x, 60).map((c) => ({ x: 1.5, c, kind: t, src: i })), space: 1, split: true, src: i });
+    }
+  }
+  // Paginate.
+  const pages = [[]];
+  let used = 0;
+  const srcPage = new Array(script.length).fill(0);
+  const scenes = [];
+  const outline = [];
+  let scene = null;
+  const q = blocks.slice();
+  const place = (blk, space) => {
+    if (scene) scene.lines += space + blk.lines.length;
+    used += space;
+    for (const ln of blk.lines) {
+      pages[pages.length - 1].push({ row: used, ...ln });
+      if (!srcPage[ln.src]) srcPage[ln.src] = pages.length;
+      used++;
+    }
+  };
+  const newPage = () => { pages.push([]); used = 0; };
+  while (q.length) {
+    const blk = q.shift();
+    if (blk.kind === 'section') { srcPage[blk.src] = pages.length; outline.push({ level: 0, title: blk.title, page: pages.length }); continue; }
+    let space = used ? blk.space : 0;
+    let need = space + blk.lines.length;
+    if (blk.keep) {
+      const nx = q.find((b) => b.lines.length);
+      if (nx) need += nx.space + Math.min(2, nx.lines.length);
+    }
+    if (used + need > LPP) {
+      let head = null, tail = null;
+      if (blk.split && used) [head, tail] = splitBlock(blk, LPP - used - space);
+      else if (!used) [head, tail] = splitBlock(blk, LPP, true);
+      if (head) { place(head, space); newPage(); q.unshift(tail); continue; }
+      if (used) { newPage(); space = 0; }
+    }
+    if (blk.kind === 'scene') {
+      scene = { id: blk.id, src: blk.src, heading: blk.lines.map((l) => l.c.map((c) => c[0]).join('')).join(' '), page: pages.length, lines: 0 };
+      scenes.push(scene);
+      outline.push({ level: 1, title: `${scenes.length}. ${scene.heading}`, page: pages.length });
+    }
+    place(blk, space);
+  }
+  // Fill page numbers for blocks that produced no lines (empty ones) from their neighbours.
+  let last = 1;
+  for (let i = 0; i < srcPage.length; i++) { if (srcPage[i]) last = srcPage[i]; else srcPage[i] = last; }
+  return { pages, srcPage, scenes, outline, pageCount: pages.length === 1 && !pages[0].length ? 0 : pages.length };
+}
+
+function splitBlock(blk, room, force) {
+  const lines = blk.lines;
+  let k;
+  if (force) {
+    if (lines.length <= room) return [null, null];
+    k = room;
+  } else if (blk.kind === 'dialogue') {
+    k = null;
+    for (let c = 2; c <= Math.min(room - 1, lines.length - 1); c++) if (lines[c - 1].kind === 'dialogue') k = c;
+    if (k == null) return [null, null];
+    const name = lines[0].c.map((c) => c[0]).join('');
+    const cont = /CONT'D/.test(name) ? name : `${name} (CONT'D)`;
+    return [
+      { ...blk, lines: lines.slice(0, k).concat([{ x: LAY.character[0], c: styled('(MORE)'), kind: 'more', src: lines[k - 1].src }]) },
+      { ...blk, space: 0, lines: [{ x: LAY.character[0], c: styled(cont), kind: 'character', src: lines[k].src }].concat(lines.slice(k)) },
+    ];
+  } else {
+    k = Math.min(room, lines.length - 2);
+    if (k < 2) return [null, null];
+  }
+  return [{ ...blk, lines: lines.slice(0, k) }, { ...blk, space: 0, lines: lines.slice(k), keep: false }];
+}
+
+function eighths(lines) {
+  const n = Math.max(1, Math.round(lines / (LPP / 8)));
+  const w = Math.floor(n / 8), r = n % 8;
+  return w && r ? `${w} ${r}/8` : w ? `${w}` : `${r}/8`;
+}
+
+/* =====================================================================
+   Script analysis: stats and lint
+   ===================================================================== */
+function analyze(p, lay) {
+  const s = p.script;
+  const chars = {};
+  const sceneOf = new Array(s.length).fill(-1);
+  let sc = -1;
+  let totalWords = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i].t === 'scene') sc++;
+    sceneOf[i] = sc;
+    totalWords += words(s[i].x);
+  }
+  for (let i = 0; i < s.length; i++) {
+    if (s[i].t !== 'character' || !(s[i].x || '').trim()) continue;
+    const name = s[i].x.replace(/\s*\(.*?\)/g, '').trim().toUpperCase();
+    const c = chars[name] || (chars[name] = { name, speeches: 0, words: 0, scenes: new Set(), first: i, lines: [] });
+    c.speeches++;
+    c.scenes.add(sceneOf[i]);
+    for (let j = i + 1; j < s.length && (s[j].t === 'dialogue' || s[j].t === 'paren'); j++) {
+      if (s[j].t === 'dialogue') { c.words += words(s[j].x); if (c.lines.length < 60) c.lines.push(s[j].x); }
+    }
+  }
+  const ie = { INT: 0, EXT: 0, 'INT/EXT': 0 }, tod = {};
+  const locations = new Set();
+  for (const b of s) {
+    if (b.t !== 'scene' || !(b.x || '').trim()) continue;
+    const h = b.x.toUpperCase().trim();
+    if (/^(INT\.?\/EXT|I\/E)/.test(h)) ie['INT/EXT']++; else if (/^INT/.test(h)) ie.INT++; else if (/^EXT/.test(h)) ie.EXT++;
+    const m = h.match(/^(?:INT\.?\/EXT\.?|INT\/EXT\.?|I\/E\.?|INT\.?|EXT\.?|EST\.?)\s*(.*?)(?:\s+-\s+(.*))?$/);
+    if (m && m[1]) locations.add(m[1].trim());
+    if (m && m[2]) tod[m[2].trim()] = (tod[m[2].trim()] || 0) + 1;
+  }
+  return { chars, sceneOf, words: totalWords, ie, tod, locations: [...locations] };
+}
+
+function lint(p, lay, an) {
+  const s = p.script;
+  const out = [];
+  const add = (i, sev, msg) => out.push({ i, id: s[i].id, sev, msg });
+  const introduced = new Set();
+  for (let i = 0; i < s.length; i++) {
+    const b = s[i];
+    const x = (b.x || '').trim();
+    if (!x) continue;
+    if (b.t === 'action') {
+      const lines = wrapStyled(x, 60).length;
+      if (lines > 4) add(i, 'warn', `Action paragraph runs ${lines} lines. Break it up; four lines or fewer reads faster.`);
+      if (/\bwe (see|hear|watch|notice)\b/i.test(x)) add(i, 'tip', '"We see" / "we hear" can usually go: just describe what happens.');
+      if (/\b(camera|pan(s)? (to|across)|zoom(s)? in|angle on|close on|dolly)\b/i.test(x)) add(i, 'tip', 'Camera directions are usually left out of a spec script.');
+      for (const m of x.matchAll(/\b([A-Z][A-Z'.-]{1,}(?: [A-Z][A-Z'.-]{1,})*)\b/g)) introduced.add(m[1]);
+    }
+    if (b.t === 'scene') {
+      const h = x.toUpperCase();
+      if (!SCENE_RE.test(h) && !/^(MONTAGE|FLASHBACK|INTERCUT|SERIES OF SHOTS|BACK TO)/.test(h)) add(i, 'warn', 'Scene headings usually start with INT. or EXT.');
+      else if (SCENE_RE.test(h) && !/ - /.test(h)) add(i, 'tip', 'Add the time of day: INT. KITCHEN - NIGHT.');
+    }
+    if (b.t === 'paren') {
+      if (x.length > 30) add(i, 'tip', 'Long parenthetical. Keep them to a few words, or make it action.');
+      if (/\b\w+ly\b/i.test(x)) add(i, 'tip', 'Adverb parenthetical. Can the line or an action show that instead?');
+    }
+    if (b.t === 'character') {
+      const name = x.replace(/\s*\(.*?\)/g, '').trim().toUpperCase();
+      const c = an.chars[name];
+      if (c && c.first === i && ![...introduced].some((w) => w === name || w.startsWith(name + ' ') || w.split(' ')[0] === name)) {
+        add(i, 'tip', `${name} speaks before being introduced. Introduce them in CAPS in the action with an age, e.g. "${name} (40s)".`);
+      }
+      let n = 0;
+      for (let j = i + 1; j < s.length && (s[j].t === 'dialogue' || s[j].t === 'paren'); j++) if (s[j].t === 'dialogue') n += wrapStyled(s[j].x || '', 35).length;
+      if (n > 10) add(i, 'warn', `${name} has a ${n}-line speech. Could it be cut, or broken up by action or another voice?`);
+    }
+    if (b.t === 'dialogue' && /^(hi|hello|hey|good (morning|evening|afternoon))\b[,.!]?/i.test(x) && x.length < 30) add(i, 'tip', 'Small talk. Can the scene start after the greeting?');
+  }
+  const target = p.mode === 'tv' ? TV_STRUCTURE[p.tvFormat].at(-1)[2] : p.targetPages;
+  if (lay.pageCount > target * 1.15) out.push({ i: -1, sev: 'warn', msg: `The draft is ${lay.pageCount} pages; your target is about ${target}.` });
+  return out;
+}
+
+function currentBeat(p, page) {
+  if (p.mode === 'tv') {
+    const acts = TV_STRUCTURE[p.tvFormat];
+    const a = acts.find(([, x, y]) => page >= x && page < y) || acts.at(-1);
+    return { name: a[0], range: `pp. ${a[1]}–${a[2]}`, desc: page >= a[2] - 2 ? 'Build to the act out: end on a question that carries us through the break.' : 'Keep the A story moving; weave in the B and C stories.', q: 'What question will the audience carry into the break?' };
+  }
+  const t = p.targetPages;
+  // Point beats win when the page is on them; otherwise the span we're inside.
+  const pts = BEATS.filter((b) => b[1] === b[2]);
+  const onPoint = pts.find((b) => Math.abs(scale(b[1], t) - page) <= 1);
+  const span = BEATS.filter((b) => b[1] !== b[2] && page >= scale(b[1], t) && page <= scale(b[2], t)).at(-1);
+  const b = onPoint || span || BEATS.at(-1);
+  return { name: b[0], range: pageRange(b[1], b[2], t), desc: b[3], q: b[4], idx: BEATS.indexOf(b) };
+}
+
+/* =====================================================================
+   Script editor: one contenteditable page whose children are elements.
+   The model (P.script) is the source of truth; the DOM is re-read after
+   native typing and re-rendered after structural edits.
+   ===================================================================== */
+const Editor = {
+  el: null,
+  undo: [],
+  redo: [],
+  lastPush: 0,
+  ac: null, // autocomplete state
+  onChange: null,
+  onCaret: null,
+
+  mount(container) {
+    const el = document.createElement('div');
+    el.className = 'paper';
+    el.contentEditable = 'true';
+    el.spellcheck = true;
+    el.setAttribute('role', 'textbox');
+    el.setAttribute('aria-multiline', 'true');
+    el.setAttribute('aria-label', 'Screenplay');
+    container.appendChild(el);
+    this.el = el;
+    this.render();
+    el.addEventListener('keydown', (e) => this.keydown(e));
+    el.addEventListener('beforeinput', (e) => this.beforeinput(e));
+    el.addEventListener('input', () => this.input());
+    el.addEventListener('paste', (e) => this.paste(e));
+    el.addEventListener('drop', (e) => e.preventDefault());
+    el.addEventListener('blur', () => setTimeout(() => this.closeAC(), 150));
+    this._sel = () => { if (this.el && this.el.contains(document.getSelection().anchorNode)) this.caretMoved(); };
+    document.addEventListener('selectionchange', this._sel);
+  },
+  unmount() {
+    document.removeEventListener('selectionchange', this._sel);
+    this.closeAC();
+    this.el = null;
+  },
+
+  blockHTML(b) {
+    const x = b.x || '';
+    return `<div class="el t-${b.t}${x ? '' : ' empty'}" data-t="${b.t}" data-id="${b.id}" data-label="${EL[b.t].label}" data-ph="${esc(EL[b.t].ph)}">${x ? esc(x) : '<br>'}</div>`;
+  },
+  render() {
+    if (!this.el) return;
+    if (!P.script.length) P.script.push({ id: uid(), t: 'scene', x: '' });
+    this.el.innerHTML = P.script.map((b) => this.blockHTML(b)).join('');
+  },
+  renderBlock(i) {
+    const div = this.el.children[i];
+    const tmp = document.createElement('div');
+    tmp.innerHTML = this.blockHTML(P.script[i]);
+    div.replaceWith(tmp.firstChild);
+  },
+
+  /* ---------- caret helpers ---------- */
+  caret() {
+    const sel = document.getSelection();
+    if (!sel.rangeCount || !this.el.contains(sel.anchorNode)) return null;
+    let node = sel.anchorNode;
+    while (node && node.parentNode !== this.el) node = node.parentNode;
+    if (!node) return null;
+    const i = Array.prototype.indexOf.call(this.el.children, node);
+    const r = document.createRange();
+    r.selectNodeContents(node);
+    r.setEnd(sel.anchorNode, sel.anchorOffset);
+    return { i, off: r.toString().length, collapsed: sel.isCollapsed };
+  },
+  setCaret(i, off) {
+    const div = this.el.children[clamp(i, 0, this.el.children.length - 1)];
+    if (!div) return;
+    const sel = document.getSelection();
+    const r = document.createRange();
+    let remaining = off;
+    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+    let node, placed = false;
+    while ((node = walker.nextNode())) {
+      if (remaining <= node.length) { r.setStart(node, remaining); placed = true; break; }
+      remaining -= node.length;
+    }
+    if (!placed) { r.selectNodeContents(div); r.collapse(false); if (!div.textContent) r.setStart(div, 0); }
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    this.caretMoved();
+  },
+  scrollTo(i, flash) {
+    const div = this.el && this.el.children[i];
+    if (!div) return;
+    div.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (flash) { div.classList.add('flash'); setTimeout(() => div.classList.remove('flash'), 900); }
+  },
+
+  /* ---------- model sync ---------- */
+  readDOM() {
+    // Normalize stray nodes the browser may create, then rebuild the model.
+    const known = new Map(P.script.map((b) => [b.id, b]));
+    const seen = new Set();
+    const next = [];
+    let dirty = false;
+    for (const node of Array.from(this.el.childNodes)) {
+      if (node.nodeType === 3) {
+        if (!node.textContent.trim()) { node.remove(); continue; }
+        const div = document.createElement('div');
+        node.replaceWith(div); div.appendChild(node);
+        div.className = 'el t-action'; div.dataset.t = 'action'; dirty = true;
+        next.push(this.fromDiv(div, known, seen)); continue;
+      }
+      if (node.nodeType !== 1) { node.remove(); continue; }
+      if (!node.classList.contains('el') || !node.dataset.t) { node.className = 'el t-action'; node.dataset.t = 'action'; dirty = true; }
+      if (Array.from(node.childNodes).some((c) => c.nodeType === 1 && c.nodeName !== 'BR')) { dirty = true; node.textContent = node.innerText.replace(/\n$/, ''); }
+      next.push(this.fromDiv(node, known, seen));
+    }
+    P.script = next.length ? next : [{ id: uid(), t: 'action', x: '' }];
+    return dirty;
+  },
+  fromDiv(div, known, seen) {
+    let id = div.dataset.id;
+    if (!id || seen.has(id)) { id = uid(); div.dataset.id = id; }
+    seen.add(id);
+    const t = div.dataset.t;
+    const x = div.textContent.replace(/ /g, ' ');
+    const old = known.get(id);
+    const b = { id, t, x };
+    if (old && old.syn) b.syn = old.syn;
+    div.classList.toggle('empty', !x);
+    return b;
+  },
+  changed(structural) {
+    layoutDirty = true;
+    if (this.onChange) this.onChange(structural);
+  },
+
+  /* ---------- history ---------- */
+  snapshot() { return { script: JSON.stringify(P.script), caret: this.caret() }; },
+  push(force) {
+    const now = Date.now();
+    if (!force && now - this.lastPush < 900) return;
+    this.lastPush = now;
+    this.undo.push(this.snapshot());
+    if (this.undo.length > 300) this.undo.shift();
+    this.redo = [];
+  },
+  restore(from, to) {
+    const snap = from.pop();
+    if (!snap) return;
+    to.push(this.snapshot());
+    P.script = JSON.parse(snap.script);
+    this.render();
+    if (snap.caret) this.setCaret(snap.caret.i, snap.caret.off);
+    this.lastPush = 0;
+    this.changed(true);
+  },
+
+  /* ---------- editing operations ---------- */
+  setType(t, i) {
+    const c = this.caret();
+    if (i == null) { if (!c) return; i = c.i; }
+    if (P.script[i].t === t) return;
+    this.push(true);
+    this.readDOM();
+    P.script[i].t = t;
+    if (t === 'paren') {
+      const x = P.script[i].x.trim();
+      if (x && !x.startsWith('(')) P.script[i].x = `(${x})`;
+    }
+    this.renderBlock(i);
+    this.setCaret(i, c && c.i === i ? c.off : (P.script[i].x || '').length);
+    this.changed(true);
+  },
+  insertAfter(i, block) {
+    P.script.splice(i + 1, 0, block);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = this.blockHTML(block);
+    if (i < 0) this.el.prepend(tmp.firstChild);
+    else this.el.children[i].after(tmp.firstChild);
+  },
+  enter(shift) {
+    const sel = document.getSelection();
+    if (!sel.isCollapsed) { document.execCommand('delete'); this.readDOM(); }
+    const c = this.caret();
+    if (!c) return;
+    this.push(true);
+    this.readDOM();
+    const b = P.script[c.i];
+    const x = b.x || '';
+    if (shift && (b.t === 'action' || b.t === 'dialogue')) {
+      b.x = x.slice(0, c.off) + '\n' + x.slice(c.off);
+      this.renderBlock(c.i);
+      this.setCaret(c.i, c.off + 1);
+      this.changed(false);
+      return;
+    }
+    // Enter on an empty non-action element turns it into action.
+    if (!x.trim() && b.t !== 'action' && b.t !== 'scene') {
+      b.t = 'action';
+      b.x = '';
+      this.renderBlock(c.i);
+      this.setCaret(c.i, 0);
+      this.changed(true);
+      return;
+    }
+    // Recognize typed scene headings and transitions.
+    if (b.t === 'action' && SCENE_RE.test(x.trim())) b.t = 'scene';
+    if (b.t === 'action' && x.trim() === x.trim().toUpperCase() && /TO:$/.test(x.trim())) b.t = 'transition';
+    let before = x.slice(0, c.off);
+    const after = x.slice(c.off);
+    if (b.t === 'paren' && !after && before.trim().startsWith('(') && !before.trim().endsWith(')')) before = before.trimEnd() + ')';
+    let t = NEXT[b.t] || 'action';
+    if (c.off === 0 && x) {
+      // Caret at the start of a filled element: open an empty line above.
+      this.insertAfter(c.i - 1, { id: uid(), t: b.t === 'scene' ? 'action' : b.t, x: '' });
+      this.setCaret(c.i + 1, 0);
+      this.changed(true);
+      return;
+    }
+    if (after) t = b.t;
+    b.x = before;
+    this.renderBlock(c.i);
+    this.insertAfter(c.i, { id: uid(), t, x: after });
+    this.setCaret(c.i + 1, 0);
+    this.changed(true);
+  },
+  backspace(e) {
+    const c = this.caret();
+    if (!c || !c.collapsed || c.off !== 0) return;
+    e.preventDefault();
+    this.readDOM();
+    const b = P.script[c.i];
+    if (!b.x && b.t !== 'action' && c.i > 0 && P.script[c.i - 1].t !== 'character') {
+      // First backspace on an empty element resets it to action.
+      this.push(true); b.t = 'action'; this.renderBlock(c.i); this.setCaret(c.i, 0); this.changed(true); return;
+    }
+    if (c.i === 0) { if (b.t !== 'action' && !b.x) this.setType('action', 0); return; }
+    this.push(true);
+    const prev = P.script[c.i - 1];
+    const off = (prev.x || '').length;
+    prev.x = (prev.x || '') + (b.x || '');
+    P.script.splice(c.i, 1);
+    this.el.children[c.i].remove();
+    this.renderBlock(c.i - 1);
+    this.setCaret(c.i - 1, off);
+    this.changed(true);
+  },
+  del(e) {
+    const c = this.caret();
+    if (!c || !c.collapsed) return;
+    this.readDOM();
+    const b = P.script[c.i];
+    if (c.off !== (b.x || '').length || c.i >= P.script.length - 1) return;
+    e.preventDefault();
+    this.push(true);
+    const next = P.script[c.i + 1];
+    b.x = (b.x || '') + (next.x || '');
+    P.script.splice(c.i + 1, 1);
+    this.el.children[c.i + 1].remove();
+    this.renderBlock(c.i);
+    this.setCaret(c.i, c.off);
+    this.changed(true);
+  },
+  cycle(dir) {
+    const c = this.caret();
+    if (!c) return;
+    const b = P.script[c.i];
+    const k = CYCLE.indexOf(b.t);
+    const t = CYCLE[(k + dir + CYCLE.length) % CYCLE.length];
+    this.setType(t);
+  },
+
+  /* ---------- events ---------- */
+  keydown(e) {
+    const mod = e.metaKey || e.ctrlKey;
+    if (this.ac) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); this.moveAC(e.key === 'ArrowDown' ? 1 : -1); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); this.acceptAC(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); this.closeAC(); return; }
+    }
+    if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? this.restore(this.redo, this.undo) : this.restore(this.undo, this.redo); return; }
+    if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); this.restore(this.redo, this.undo); return; }
+    if (mod && (e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'u')) { e.preventDefault(); this.wrapSelection({ b: '**', i: '*', u: '_' }[e.key.toLowerCase()]); return; }
+    if (e.altKey && /^Digit[1-7]$/.test(e.code)) { e.preventDefault(); this.setType(ELEMENTS[+e.code.slice(5) - 1][0]); return; }
+    if (e.key === 'Enter') { e.preventDefault(); this.enter(e.shiftKey); return; }
+    if (e.key === 'Tab') { e.preventDefault(); this.cycle(e.shiftKey ? -1 : 1); return; }
+    if (e.key === 'Backspace') { this.backspace(e); return; }
+    if (e.key === 'Delete') { this.del(e); return; }
+  },
+  beforeinput(e) {
+    if (e.inputType === 'historyUndo') { e.preventDefault(); this.restore(this.undo, this.redo); return; }
+    if (e.inputType === 'historyRedo') { e.preventDefault(); this.restore(this.redo, this.undo); return; }
+    if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') { e.preventDefault(); return; }
+    const sel = document.getSelection();
+    this.push(!sel.isCollapsed);
+  },
+  input() {
+    const c = this.caret();
+    const dirty = this.readDOM();
+    if (dirty && c) this.setCaret(c.i, c.off);
+    if (c) this.autoType(c.i);
+    this.changed(false);
+    this.suggest();
+  },
+  autoType(i) {
+    const b = P.script[i];
+    const x = b.x || '';
+    let t = null;
+    if (b.t === 'action' && /^(int|ext|est|int\.?\/ext|i\/e)[.\s]/i.test(x) && !x.includes('\n')) t = 'scene';
+    if (b.t === 'dialogue' && x.startsWith('(')) t = 'paren';
+    if (t) {
+      const c = this.caret();
+      b.t = t;
+      this.renderBlock(i);
+      this.setCaret(i, c ? c.off : x.length);
+    }
+  },
+  paste(e) {
+    e.preventDefault();
+    const text = (e.clipboardData.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+    if (!text) return;
+    this.push(true);
+    if (!text.includes('\n')) { document.execCommand('insertText', false, text); return; }
+    const sel = document.getSelection();
+    if (!sel.isCollapsed) document.execCommand('delete');
+    this.readDOM();
+    const c = this.caret() || { i: P.script.length - 1, off: (P.script.at(-1).x || '').length };
+    const b = P.script[c.i];
+    const before = (b.x || '').slice(0, c.off), after = (b.x || '').slice(c.off);
+    let blocks = parseFountain(text).blocks;
+    if (!blocks.length) return;
+    b.x = before;
+    const ins = blocks;
+    const keepB = before.trim() !== '';
+    const start = keepB ? c.i + 1 : c.i;
+    P.script.splice(start, keepB ? 0 : 1, ...ins);
+    let last = start + ins.length - 1;
+    if (after.trim()) { P.script.splice(last + 1, 0, { id: uid(), t: b.t, x: after }); }
+    this.render();
+    this.setCaret(last, (P.script[last].x || '').length);
+    this.scrollTo(last);
+    this.changed(true);
+  },
+  wrapSelection(mark) {
+    const sel = document.getSelection();
+    if (sel.isCollapsed) return;
+    const text = sel.toString();
+    if (text.includes('\n')) return;
+    this.push(true);
+    document.execCommand('insertText', false, mark + text + mark);
+  },
+
+  /* ---------- caret moved: update toolbar/companion ---------- */
+  caretMoved() {
+    const c = this.caret();
+    if (!c) return;
+    if (this._cur !== c.i || !this.el.children[c.i]?.classList.contains('cur')) {
+      $$('.el.cur', this.el).forEach((d) => d.classList.remove('cur'));
+      this.el.children[c.i]?.classList.add('cur');
+      this._cur = c.i;
+    }
+    if (this.onCaret) this.onCaret(c.i);
+  },
+
+  /* ---------- autocomplete ---------- */
+  suggest() {
+    const c = this.caret();
+    if (!c) return this.closeAC();
+    const b = P.script[c.i];
+    const x = (b.x || '');
+    const X = x.toUpperCase();
+    let items = [], mode = null, note = '';
+    if (b.t === 'character' && c.off === x.length) {
+      const names = new Set();
+      for (const s of P.script) if (s.t === 'character' && s !== b && s.x.trim()) names.add(s.x.replace(/\s*\(.*?\)/g, '').trim().toUpperCase());
+      for (const ch of P.characters) if (ch.name) names.add(ch.name.toUpperCase());
+      if (/\($/.test(X) || /\s\($/.test(X)) {
+        items = ['V.O.)', 'O.S.)', "CONT'D)", 'O.C.)'].map((s) => X + s); note = 'Extensions';
+      } else if (X.trim()) {
+        items = [...names].filter((n) => n.startsWith(X.trim()) && n !== X.trim()).slice(0, 6);
+        note = 'Characters';
+      }
+      mode = 'replace';
+    } else if (b.t === 'scene' && c.off === x.length) {
+      const m = X.match(/^((?:INT\.?\/EXT|INT\/EXT|I\/E|INT|EXT|EST)\.?\s+)(.*)$/);
+      if (!X.trim()) { items = ['INT. ', 'EXT. ', 'INT./EXT. ']; note = 'Scene heading'; }
+      else if (m && !/ - /.test(m[2])) {
+        const locs = analyze(P, getLayout()).locations;
+        items = locs.filter((l) => l.startsWith(m[2].trim()) && l !== m[2].trim()).slice(0, 6).map((l) => m[1] + l + ' - ');
+        note = 'Locations';
+      } else if (/ - $/.test(X) || / - [A-Z]*$/.test(X)) {
+        const part = X.split(' - ').at(-1);
+        items = ['DAY', 'NIGHT', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'MORNING', 'EVENING', 'DAWN', 'DUSK']
+          .filter((t) => t.startsWith(part) && t !== part).map((t) => X.slice(0, X.length - part.length) + t);
+        note = 'Time of day';
+      }
+      mode = 'replace';
+    } else if (b.t === 'transition' && c.off === x.length) {
+      items = ['CUT TO:', 'SMASH CUT TO:', 'MATCH CUT TO:', 'DISSOLVE TO:', 'FADE OUT.', 'FADE IN:'].filter((t) => t.startsWith(X.trim()) && t !== X.trim());
+      note = 'Transitions';
+      mode = 'replace';
+    }
+    if (!items.length) return this.closeAC();
+    this.ac = { i: c.i, items, sel: 0, mode, note };
+    this.drawAC();
+  },
+  drawAC() {
+    let box = $('#ac');
+    if (!box) { box = document.createElement('div'); box.id = 'ac'; box.className = 'ac'; box.setAttribute('role', 'listbox'); document.body.appendChild(box); }
+    const div = this.el.children[this.ac.i];
+    const r = div.getBoundingClientRect();
+    const indent = parseFloat(getComputedStyle(div).marginLeft) || 0;
+    box.style.left = Math.min(r.left, window.innerWidth - 240) + 'px';
+    box.style.top = Math.min(r.bottom + 4, window.innerHeight - 220) + 'px';
+    box.innerHTML = `<small>${esc(this.ac.note)} · Tab to accept</small>` + this.ac.items.map((s, k) => `<div role="option" data-k="${k}" aria-selected="${k === this.ac.sel}">${esc(s)}</div>`).join('');
+    box.onmousedown = (ev) => { const d = ev.target.closest('[data-k]'); if (d) { ev.preventDefault(); this.ac.sel = +d.dataset.k; this.acceptAC(); } };
+    void indent;
+  },
+  moveAC(d) { this.ac.sel = (this.ac.sel + d + this.ac.items.length) % this.ac.items.length; this.drawAC(); },
+  acceptAC() {
+    const { i, items, sel } = this.ac;
+    this.push(true);
+    P.script[i].x = items[sel];
+    this.renderBlock(i);
+    this.setCaret(i, items[sel].length);
+    this.closeAC();
+    this.changed(false);
+    this.suggest();
+  },
+  closeAC() { this.ac = null; const box = $('#ac'); if (box) box.remove(); },
+};
+
+/* =====================================================================
+   State and saving
+   ===================================================================== */
+let LIB = { current: null, projects: {} };
+let P = null;
+let layoutDirty = true;
+let _layout = null, _analysis = null;
+const state = { view: 'home', sub: {}, castSel: 0, preview: false, focus: false, episode: 0 };
+const caps = { db: null, userId: null, sample: null, downloads: null };
+const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+const LS_KEY = 'draftroom.v1';
+
+function getLayout() {
+  if (layoutDirty || !_layout) { _layout = layoutScript(P.script); _analysis = null; layoutDirty = false; }
+  return _layout;
+}
+function getAnalysis() { const lay = getLayout(); if (!_analysis) _analysis = analyze(P, lay); return _analysis; }
+
+function blankProject(title) {
+  return {
+    id: uid(), title: title || 'Untitled', author: '', contact: '', draftDate: '', mode: 'film', targetPages: 110, tvFormat: 'hour', revision: 'White',
+    idea: {}, beats: {}, acts: {}, sequences: {}, subplots: [{ name: 'A story' }, { name: 'B story' }, { name: 'C story' }],
+    tv: { episodes: [], structure: {} }, characters: [], ideas: [], cards: {},
+    script: [{ id: uid(), t: 'scene', x: '' }], checklist: {}, feedback: [], notes: '',
+    created: Date.now(), updated: Date.now(),
+  };
+}
+function normalize(p) {
+  const b = blankProject();
+  for (const k of Object.keys(b)) if (p[k] == null) p[k] = b[k];
+  if (!Array.isArray(p.script) || !p.script.length) p.script = b.script;
+  p.script.forEach((s) => { if (!s.id) s.id = uid(); if (!EL[s.t]) s.t = 'action'; if (typeof s.x !== 'string') s.x = ''; });
+  return p;
+}
+
+const Store = {
+  timer: null,
+  queue: Promise.resolve(),
+  written: {},
+  status(text, err) { const el = $('#save-state'); if (el) { el.textContent = text; el.classList.toggle('err', !!err); } },
+  readLocal() {
+    try { const raw = localStorage.getItem(LS_KEY); if (raw) return JSON.parse(raw); } catch (e) { /* storage blocked */ }
+    return null;
+  },
+  writeLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(LIB)); return true; } catch (e) { return false; }
+  },
+  schedule() {
+    this.status('Saving…');
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 700);
+  },
+  async flush() {
+    clearTimeout(this.timer);
+    const localOK = this.writeLocal();
+    if (caps.db && caps.userId) {
+      try { await this.pushRemote(P); this.status('Saved to your account'); }
+      catch (e) { this.status(localOK ? 'Saved in this browser (account save failed)' : 'Not saved: export a backup', !localOK); }
+    } else {
+      this.status(localOK ? 'Saved in this browser' : 'Not saved: export a backup', !localOK);
+    }
+  },
+  path(k) { return `data/users/${caps.userId}/${k}`; },
+  async write(path, body) {
+    const str = JSON.stringify(body);
+    if (this.written[path] === str) return;
+    await caps.db.doc(path).set(body);
+    this.written[path] = str;
+  },
+  pushRemote(p) {
+    const job = async () => {
+      const { script, ...meta } = p;
+      const chunks = [];
+      let cur = [], size = 0;
+      for (const b of script) {
+        const n = JSON.stringify(b).length;
+        if (size + n > 150000 && cur.length) { chunks.push(cur); cur = []; size = 0; }
+        cur.push(b); size += n;
+      }
+      chunks.push(cur);
+      for (let k = 0; k < chunks.length; k++) await this.write(this.path(`p_${p.id}_s${k}`), { blocks: JSON.stringify(chunks[k]) });
+      await this.write(this.path(`p_${p.id}`), { meta: JSON.stringify(meta), chunks: chunks.length, updated: p.updated });
+      await this.write(this.path('index'), { current: LIB.current, list: JSON.stringify(Object.values(LIB.projects).map((x) => ({ id: x.id, title: x.title, updated: x.updated }))) });
+    };
+    this.queue = this.queue.then(job, job);
+    return this.queue;
+  },
+  async pullRemote(id) {
+    const m = await caps.db.doc(this.path(`p_${id}`)).get();
+    if (!m.exists) return null;
+    const d = m.data();
+    const meta = JSON.parse(d.meta);
+    const script = [];
+    for (let k = 0; k < d.chunks; k++) {
+      const c = await caps.db.doc(this.path(`p_${id}_s${k}`)).get();
+      if (c.exists) script.push(...JSON.parse(c.data().blocks));
+    }
+    return normalize({ ...meta, script });
+  },
+  async removeRemote(id) {
+    if (!caps.db || !caps.userId) return;
+    try {
+      const m = await caps.db.doc(this.path(`p_${id}`)).get();
+      const n = m.exists ? m.data().chunks : 0;
+      for (let k = 0; k < n; k++) await caps.db.doc(this.path(`p_${id}_s${k}`)).delete();
+      await caps.db.doc(this.path(`p_${id}`)).delete();
+    } catch (e) { /* best effort */ }
+  },
+  async sync() {
+    // Merge account copies with this browser's copies; newest wins per project.
+    try {
+      const idx = await caps.db.doc(this.path('index')).get();
+      let changedCurrent = false;
+      if (idx.exists) {
+        const list = JSON.parse(idx.data().list || '[]');
+        for (const r of list) {
+          const local = LIB.projects[r.id];
+          if (!local || (r.updated || 0) > (local.updated || 0)) {
+            const p = await this.pullRemote(r.id);
+            if (p) { LIB.projects[p.id] = p; if (p.id === LIB.current) changedCurrent = true; }
+          }
+        }
+        if (!LIB.projects[LIB.current] && idx.data().current) LIB.current = idx.data().current;
+      }
+      for (const p of Object.values(LIB.projects)) await this.pushRemote(p);
+      this.writeLocal();
+      this.status('Saved to your account');
+      if (changedCurrent || P !== LIB.projects[LIB.current]) { openProject(LIB.current, true); }
+    } catch (e) {
+      this.status('Saved in this browser');
+    }
+  },
+};
+
+let railTimer = null;
+function touch(structural) {
+  P.updated = Date.now();
+  if (structural) layoutDirty = true;
+  Store.schedule();
+  clearTimeout(railTimer);
+  railTimer = setTimeout(renderRail, 500);
+}
+
+function openProject(id, quiet) {
+  if (!LIB.projects[id]) id = Object.keys(LIB.projects)[0];
+  LIB.current = id;
+  P = normalize(LIB.projects[id]);
+  layoutDirty = true;
+  Editor.undo = []; Editor.redo = [];
+  state.castSel = 0; state.episode = 0;
+  $('#proj-name').textContent = P.title || 'Untitled';
+  renderRail();
+  renderView();
+  if (!quiet) Store.writeLocal();
+}
+function addProject(p, open = true) {
+  p = normalize(p);
+  LIB.projects[p.id] = p;
+  if (open) openProject(p.id);
+  touch();
+  return p;
+}
+
+/* =====================================================================
+   Example project
+   ===================================================================== */
+const SAMPLE_FOUNTAIN = `Title: The Last Train North
+Credit: Written by
+Author: Example Writer
+Draft date: First Draft
+
+# ACT ONE
+
+FADE IN:
+
+EXT. RAIL YARD - NIGHT
+
+Sodium lights buzz over rows of dead freight cars. Snow drifts through the beams.
+
+MAYA REYES (30s, grease-stained overalls, eyes that never stop scanning) walks the line with a flashlight, tapping each coupling with a wrench.
+
+*Clang.* *Clang.* Then a hollow _thunk_.
+
+She stops. Crouches. Something is taped under the car: an envelope.
+
+MAYA
+(to herself)
+You've got to be kidding me.
+
+She tears it open. Inside: a single ticket. NORTHERN LINE. ONE WAY. Tomorrow's date.
+
+And her name, handwritten.
+
+INT. YARD OFFICE - CONTINUOUS
+
+A space heater rattles. OTIS (60s, cardigan over a union jacket) nurses a thermos of coffee and a crossword.
+
+Maya slaps the ticket on his desk.
+
+MAYA
+Who's been under car nine?
+
+OTIS
+Nobody's been under car nine since the Carter administration.
+
+MAYA
+Then explain this.
+
+Otis studies it. Something passes over his face, recognition or maybe fear, and is gone.
+
+OTIS
+(too casual)
+Kids. Pranks. Toss it.
+
+MAYA
+Kids don't know my middle name, Otis.
+
+He doesn't answer. He folds his crossword. Very carefully.
+
+INT. MAYA'S APARTMENT - KITCHEN - NIGHT
+
+Dishes. Unopened bills. A photo on the fridge: Maya, younger, beside a WOMAN in a conductor's cap.
+
+Maya props the ticket against the photo. Stares at both.
+
+MAYA
+You don't get to do this. Not after twenty years.
+
+She picks up the phone. Dials. Waits.
+
+INT. OTIS'S TRUCK - MOVING - NIGHT
+
+Otis drives through snow. His phone buzzes. He answers.
+
+OTIS
+It's two in the morning.
+
+MAYA (V.O.)
+You knew her handwriting. Didn't you.
+
+A long silence. Wipers thud.
+
+OTIS
+Get on the train, Maya.
+
+He hangs up.
+
+CUT TO:
+
+EXT. NORTHERN LINE PLATFORM - DAWN
+
+Maya, duffel over one shoulder, steps onto a train that shouldn't exist: brass fittings, velvet curtains, steam curling from its wheels.
+`;
+
+function sampleProject() {
+  const r = parseFountain(SAMPLE_FOUNTAIN);
+  const p = blankProject(r.title);
+  Object.assign(p, { author: r.author, draftDate: r.draftDate, script: r.blocks, example: true, revision: 'Blue' });
+  p.idea = {
+    protagonist: 'Maya Reyes, a rail-yard mechanic who never left her hometown',
+    incident: 'a one-way ticket in her vanished mother\'s handwriting turns up under a freight car',
+    goal: 'board a train that shouldn\'t exist and find out what happened to her mother',
+    antagonist: 'a yard boss who knows more than he says, and a train that doesn\'t want to let her off',
+    stakes: 'she loses her last chance at the truth, and the life she never let herself live',
+    hook: 'a train that only comes for the people who were left behind',
+    logline1: 'When a one-way ticket in her vanished mother\'s handwriting turns up under a freight car, a rail-yard mechanic who never left home must ride a train that shouldn\'t exist to learn the truth, before it carries her past the point of return.',
+    chosen: '1',
+    genre: 'Supernatural drama', tone: 'Melancholy, mysterious, warm', comps: 'Field of Dreams meets Snowpiercer',
+    theme: 'Is staying put an act of loyalty, or of fear?', controlling: 'We find our way home only when we stop waiting to be rescued.',
+    cdq: 'Will Maya find out what happened to her mother?',
+  };
+  p.beats = {
+    0: 'Maya walks the dead rail yard alone at night, tapping couplings. Dutiful, stuck, alone.',
+    1: 'Otis: "Every train goes somewhere. You just have to decide if it\'s somewhere you want to be."',
+    3: 'The ticket under car nine, in her mother\'s handwriting.',
+    4: 'Maya confronts Otis, who tells her to toss it. The phone call: "Get on the train."',
+    5: 'Maya boards the Northern Line at dawn.',
+  };
+  p.characters = [
+    { id: uid(), name: 'Maya', role: 'Protagonist', age: '30s', want: 'To find out why her mother left', need: 'To stop living as if someone else will decide for her', flaw: 'Mistakes duty for love; never asks for help', arc: 'Keeps the lights on for everyone → chooses her own life', voice: 'Dry, clipped, deflects with jokes' },
+    { id: uid(), name: 'Otis', role: 'Mentor', age: '60s', want: 'To keep a promise he made twenty years ago', need: 'To tell the truth even if it costs him Maya', flaw: 'Protects people by lying to them', voice: 'Folksy, circles around the point' },
+  ];
+  const scenes = p.script.filter((b) => b.t === 'scene');
+  const cards = [
+    ['Finish the night shift unnoticed', 'Something is taped under car nine', '-+'],
+    ['Get Otis to explain the ticket', 'Otis deflects; he\'s hiding something', '+-'],
+    ['Decide whether to believe it', 'Twenty years of anger at her mother', ''],
+    ['Make Otis admit what he knows', 'He won\'t say it outright', '-+'],
+    ['Board the train', '', ''],
+  ];
+  scenes.forEach((s, k) => { if (cards[k]) p.cards[s.id] = { goal: cards[k][0], conflict: cards[k][1], turn: cards[k][2] }; });
+  p.ideas = [
+    { id: uid(), text: 'Maya finds her mother\'s conductor cap in the dining car.' },
+    { id: uid(), text: 'Every passenger is someone who never left their hometown.' },
+  ];
+  return p;
+}
+
+/* =====================================================================
+   Shell: rail, menus, toast, theme
+   ===================================================================== */
+const VIEWS = [
+  ['home', 'Overview'], ['idea', 'Idea'], ['story', 'Structure'], ['cast', 'Cast'],
+  ['scenes', 'Scene board'], ['script', 'Script'], ['rewrite', 'Rewrite'], ['guide', 'Guide'],
+];
+
+function renderRail() {
+  if (!P) return;
+  const lay = getLayout();
+  const beatsDone = Object.values(P.beats || {}).filter((v) => String(v).trim()).length;
+  const scenes = lay.scenes.length;
+  const meters = {
+    idea: P.idea.logline1 || P.idea.logline2 || P.idea.logline3 ? '✓' : '',
+    story: P.mode === 'film' ? `${beatsDone}/15` : `${(P.tv.episodes || []).filter((e) => e && e.title).length} eps`,
+    cast: P.characters.length || '',
+    scenes: scenes || '',
+    script: lay.pageCount ? `${lay.pageCount} pp` : '',
+    rewrite: `${Object.values(P.checklist).filter(Boolean).length}/18`,
+  };
+  $('#rail').innerHTML = VIEWS.map(([id, label]) => `<a href="#${id}" data-view="${id}" ${state.view === id ? 'aria-current="page"' : ''}>${label}<span class="meter">${meters[id] ?? ''}</span></a>`).join('')
+    + `<div class="sep"></div><div class="hint">${P.mode === 'tv' ? (P.tvFormat === 'hour' ? 'One-hour TV' : 'Half-hour TV') : 'Feature film'} · ${esc(P.revision)} draft</div>`;
+}
+
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+function openMenu(anchor, html, bind) {
+  closeMenu();
+  const m = document.createElement('div');
+  m.className = 'menu'; m.id = 'menu'; m.setAttribute('role', 'menu');
+  m.innerHTML = html;
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.top = r.bottom + 6 + 'px';
+  m.style.left = Math.max(8, Math.min(r.right - m.offsetWidth, window.innerWidth - m.offsetWidth - 8)) + 'px';
+  bind(m);
+  setTimeout(() => document.addEventListener('mousedown', closeMenuOutside), 0);
+}
+function closeMenuOutside(e) { if (!e.target.closest('#menu')) closeMenu(); }
+function closeMenu() { const m = $('#menu'); if (m) m.remove(); document.removeEventListener('mousedown', closeMenuOutside); }
+
+function projectsMenu(anchor) {
+  const list = Object.values(LIB.projects).sort((a, b) => b.updated - a.updated);
+  openMenu(anchor, `<small>Projects</small>${list.map((p) => `<button data-open="${p.id}">${p.id === P.id ? '● ' : ''}${esc(p.title || 'Untitled')}</button>`).join('')}
+    <hr><button data-m="new-film">New feature film</button><button data-m="new-tv">New TV episode</button><button data-m="dup">Duplicate this project</button>
+    <hr><button data-m="del" class="danger">Delete this project…</button>`, (m) => {
+    m.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.open) { closeMenu(); openProject(b.dataset.open); return; }
+      const a = b.dataset.m;
+      if (a === 'new-film' || a === 'new-tv') { closeMenu(); const p = blankProject('Untitled'); if (a === 'new-tv') { p.mode = 'tv'; p.script = [{ id: uid(), t: 'section', x: 'TEASER' }, { id: uid(), t: 'scene', x: '' }]; } addProject(p); navigate('home'); toast('New project created. Give it a title in Settings.'); }
+      if (a === 'dup') { closeMenu(); const p = JSON.parse(JSON.stringify(P)); p.id = uid(); p.title = (P.title || 'Untitled') + ' (copy)'; delete p.example; addProject(p); toast('Duplicated.'); }
+      if (a === 'del') {
+        b.outerHTML = `<div class="confirm" style="padding:6px 10px">Delete “${esc(P.title)}”? <button class="btn small danger" data-m="del-yes">Delete</button><button class="btn small" data-m="del-no">Keep</button></div>`;
+      }
+      if (a === 'del-no') closeMenu();
+      if (a === 'del-yes') {
+        closeMenu();
+        const id = P.id;
+        delete LIB.projects[id];
+        Store.removeRemote(id);
+        if (!Object.keys(LIB.projects).length) addProject(blankProject('Untitled'), false);
+        openProject(Object.keys(LIB.projects)[0]);
+        Store.flush();
+        toast('Project deleted.');
+      }
+    });
+  });
+}
+
+function exportMenu(anchor) {
+  openMenu(anchor, `<small>Export “${esc(P.title)}”</small>
+    <button data-m="pdf">Screenplay PDF</button>
+    <button data-m="fountain">Fountain file (plain text)</button>
+    <button data-m="json">Project backup (everything)</button>
+    ${inFrame ? '' : '<button data-m="print">Print…</button>'}
+    <hr><button data-m="import">Import Fountain file or backup…</button>`, (m) => {
+    m.addEventListener('click', (e) => {
+      const a = e.target.closest('button')?.dataset.m; if (!a) return;
+      closeMenu();
+      if (a === 'pdf') exportPDF();
+      if (a === 'fountain') saveFile(`${fileBase()}.${caps.downloads ? 'txt' : 'fountain'}`, toFountain(P), 'text/plain');
+      if (a === 'json') saveFile(`${fileBase()} backup.json`, JSON.stringify(P, null, 1), 'application/json');
+      if (a === 'print') printScript();
+      if (a === 'import') $('#file-in').click();
+    });
+  });
+}
+function fileBase() { return (P.title || 'Untitled').replace(/[\\/:*?"<>|]+/g, '').trim() || 'Untitled'; }
+
+async function saveFile(name, data, mime) {
+  if (caps.downloads) {
+    try { await caps.downloads.save({ filename: name, data }); toast(`Saved ${name}`); }
+    catch (e) { if (e && e.code === 'declined') return; toast(e && e.code === 'rate_limited' ? 'A save is already waiting for you to confirm.' : 'That file couldn\'t be saved here.'); }
+    return;
+  }
+  if (!inFrame) {
+    const url = URL.createObjectURL(new Blob([data], { type: mime }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(`Saved ${name}`);
+    return;
+  }
+  toast('Saving files isn\'t available in this view.');
+}
+
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+}
+
+/* =====================================================================
+   Routing and rendering
+   ===================================================================== */
+function navigate(view) {
+  if (!VIEWS.some(([v]) => v === view)) view = 'home';
+  if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+  state.view = view;
+  renderRail();
+  renderView();
+  refreshAssistant();
+}
+
+function renderView() {
+  if (Editor.el) Editor.unmount();
+  const main = $('#main');
+  main.style.overflow = '';
+  const v = Views[state.view];
+  main.innerHTML = v.render();
+  main.scrollTop = 0;
+  if (v.after) v.after(main);
+}
+
+function tabs(view, list) {
+  const cur = state.sub[view] || list[0][0];
+  return `<div class="tabs" role="tablist">${list.map(([id, label]) => `<button role="tab" data-tab="${view}:${id}" aria-selected="${id === cur}">${label}</button>`).join('')}</div>`;
+}
+const subOf = (view, def) => state.sub[view] || def;
+
+function field(k, label, opts = {}) {
+  const v = getPath(P, k) ?? '';
+  const hint = opts.hint ? `<em>${esc(opts.hint)}</em>` : '';
+  const id = 'f-' + k.replace(/\W/g, '-');
+  const control = opts.input
+    ? `<input type="text" id="${id}" data-k="${k}" value="${esc(v)}" placeholder="${esc(opts.ph || '')}">`
+    : `<textarea id="${id}" data-k="${k}" class="${opts.rows === 1 ? 'short' : ''}" rows="${opts.rows || 2}" placeholder="${esc(opts.ph || '')}">${esc(v)}</textarea>`;
+  return `<label class="f" for="${id}"><span>${esc(label)}${hint}</span>${control}</label>`;
+}
+
+/* =====================================================================
+   Views
+   ===================================================================== */
+const Views = {};
+
+Views.home = {
+  render() {
+    const lay = getLayout(), an = getAnalysis();
+    const log = chosenLogline();
+    const film = P.mode === 'film';
+    const target = film ? P.targetPages : TV_STRUCTURE[P.tvFormat].at(-1)[2];
+    const beatsDone = Object.values(P.beats).filter((v) => String(v).trim()).length;
+    const n = nextStep(lay, beatsDone, target);
+    const chars = Object.values(an.chars).sort((a, b) => b.words - a.words).slice(0, 8);
+    const maxW = Math.max(1, ...chars.map((c) => c.words));
+    const pct = clamp(lay.pageCount / target, 0, 1) * 100;
+    const ticks = film
+      ? [['Catalyst', 12], ['Act II', 25], ['Midpoint', 55], ['All is lost', 75], ['Act III', 85], ['End', 110]].map(([l, p]) => [l, scale(p, target)])
+      : TV_STRUCTURE[P.tvFormat].map(([l, a]) => [l, a]).slice(1).concat([['End', target]]);
+    const projects = Object.values(LIB.projects).sort((a, b) => b.updated - a.updated);
+    return `<div class="view">
+      ${P.example ? `<div class="banner"><span><b>This is an example project.</b> Look around, try the editor, then start your own.</span><span class="row"><button class="btn small primary" data-act="new-project">Start my own project</button><button class="btn small" data-act="keep-example">Keep it as mine</button></span></div>` : ''}
+      <div class="hdr"><div><div class="eyebrow">${film ? 'Feature film' : P.tvFormat === 'hour' ? 'One-hour TV' : 'Half-hour TV'} · ${esc(P.revision)} draft</div>
+        <h1 class="vtitle">${esc(P.title || 'Untitled')}</h1>
+        <p class="lede">${P.author ? 'Written by ' + esc(P.author) : 'Add your name and contact details in Settings below. They go on the title page.'}</p></div>
+        <button class="btn primary" data-go="script">Open the script</button></div>
+      <div class="stack">
+        ${log ? `<div class="logline-card" data-go="idea" role="link" tabindex="0">${esc(log)}</div>` : `<div class="logline-card empty">No logline yet. <button class="btn small" data-go="idea">Write your logline</button></div>`}
+        <div class="panel next"><div><div class="eyebrow">Next step</div><h3>${esc(n.title)}</h3><p class="sub" style="margin:2px 0 0">${esc(n.why)}</p></div><button class="btn primary" data-go="${n.view}">${esc(n.cta)}</button></div>
+        <div class="stats">
+          <div class="stat"><b>${lay.pageCount}</b><span>pages of ~${target}</span></div>
+          <div class="stat"><b>${lay.pageCount}</b><span>minutes, roughly</span></div>
+          <div class="stat"><b>${lay.scenes.length}</b><span>scenes</span></div>
+          <div class="stat"><b>${an.words.toLocaleString()}</b><span>words</span></div>
+          <div class="stat"><b>${film ? beatsDone + '/15' : (P.tv.episodes || []).filter((e) => e && e.title).length}</b><span>${film ? 'beats planned' : 'episodes planned'}</span></div>
+          <div class="stat"><b>${Object.keys(an.chars).length}</b><span>speaking roles</span></div>
+        </div>
+        <div class="panel"><div class="spread"><h2 class="sec">Where the draft is</h2><span class="muted num" style="font-size:13px">p. ${lay.pageCount} of ~${target}</span></div>
+          <div class="timeline" aria-hidden="true"><div class="bar"></div><div class="fill" style="width:${pct}%"></div>
+          ${ticks.map(([l, p]) => `<div class="tick ${lay.pageCount >= p ? 'done' : ''}" style="left:${clamp(p / target, 0, 1) * 100}%"><span>${esc(l)} · ${p}</span></div>`).join('')}</div></div>
+        <div class="grid2">
+          <div class="panel"><h2 class="sec">Who talks most</h2><p class="sub">Words of dialogue per character.</p>
+            ${chars.length ? `<div class="bars">${chars.map((c) => `<div class="b"><span>${esc(c.name)}</span><i style="width:${(c.words / maxW) * 100}%"></i><span class="muted num">${c.words}</span></div>`).join('')}</div>` : '<p class="muted">Dialogue stats appear once characters start talking.</p>'}</div>
+          <div class="panel"><h2 class="sec">Production snapshot</h2><p class="sub">What a line producer would ask first.</p>
+            <div class="bars">${Object.entries(an.ie).filter(([, v]) => v).map(([k, v]) => `<div class="b"><span>${k}</span><i style="width:${(v / Math.max(1, lay.scenes.length)) * 100}%"></i><span class="muted num">${v}</span></div>`).join('') || '<p class="muted">No scenes yet.</p>'}</div>
+            <p class="sub" style="margin-top:12px">${an.locations.length} locations${Object.keys(an.tod).length ? ' · ' + Object.entries(an.tod).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${esc(k.toLowerCase())} ${v}`).join(', ') : ''}</p></div>
+        </div>
+        <div class="grid2">
+          <div class="panel stack"><h2 class="sec">Settings</h2>
+            ${field('title', 'Title', { input: true })}
+            <div class="grid2">${field('author', 'Written by', { input: true })}${field('draftDate', 'Draft', { input: true, ph: 'First draft, June 2026' })}</div>
+            ${field('contact', 'Contact', { rows: 2, ph: 'Email, phone or agent' })}
+            <div class="grid2">
+              <label class="f" for="f-mode"><span>Format</span><select id="f-mode" data-k="mode"><option value="film" ${film ? 'selected' : ''}>Feature film</option><option value="tv" ${!film ? 'selected' : ''}>TV episode</option></select></label>
+              ${film ? `<label class="f" for="f-target"><span>Target pages</span><input type="number" id="f-target" data-k="targetPages" min="10" max="200" value="${P.targetPages}"></label>`
+                : `<label class="f" for="f-tvf"><span>Episode length</span><select id="f-tvf" data-k="tvFormat"><option value="hour" ${P.tvFormat === 'hour' ? 'selected' : ''}>One hour</option><option value="half-hour" ${P.tvFormat !== 'hour' ? 'selected' : ''}>Half hour</option></select></label>`}
+            </div>
+            <label class="f" for="f-rev"><span>Revision color<em>Production drafts change page color with each revision</em></span><select id="f-rev" data-k="revision">${REVISIONS.map(([r]) => `<option ${P.revision === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+          </div>
+          <div class="panel stack"><h2 class="sec">Your projects</h2>
+            <div class="projects">${projects.map((p) => `<div class="p ${p.id === P.id ? 'cur' : ''}"><span><b>${esc(p.title || 'Untitled')}</b><br><small class="muted">${p.mode === 'tv' ? 'TV' : 'Film'} · edited ${new Date(p.updated).toLocaleDateString()}</small></span>${p.id === P.id ? '<span class="pill acc">Open</span>' : `<button class="btn small" data-open="${p.id}">Open</button>`}</div>`).join('')}</div>
+            <div class="row"><button class="btn" data-act="new-project">New project</button><button class="btn" data-act="import">Import…</button></div>
+            <p class="sub" style="margin:0">${saveExplainer()}</p>
+          </div>
+        </div>
+      </div></div>`;
+  },
+  onInput(t) {
+    if (t.dataset.k === 'title') { $('#proj-name').textContent = P.title || 'Untitled'; }
+    if (['mode', 'targetPages', 'tvFormat', 'revision'].includes(t.dataset.k)) { if (t.dataset.k === 'targetPages') P.targetPages = clamp(+t.value || 110, 10, 200); renderView(); }
+  },
+};
+
+function saveExplainer() {
+  if (caps.db && caps.userId) return 'Your projects save to your account as you type, and a copy stays in this browser. Export a backup now and then.';
+  return 'Your projects save in this browser as you type. Export a backup (Export → Project backup) to keep a copy somewhere safe or move to another computer.';
+}
+function chosenLogline() {
+  const i = P.idea;
+  return (i['logline' + (i.chosen || '1')] || i.logline1 || i.logline2 || i.logline3 || '').trim();
+}
+function nextStep(lay, beatsDone, target) {
+  const film = P.mode === 'film';
+  if (!chosenLogline()) return { title: 'Write your logline', why: 'One sentence: who wants what, what stands in the way, and what happens if they fail.', view: 'idea', cta: 'Go to Idea' };
+  if (film && beatsDone < 6) return { title: 'Map your structure', why: `You've planned ${beatsDone} of 15 beats. Knowing your midpoint and ending makes the draft much faster.`, view: 'story', cta: 'Open the beat sheet' };
+  if (!film && !(P.tv.engine || '').trim()) return { title: 'Define your series engine', why: 'What generates a new story every episode? Nail that before the pilot.', view: 'story', cta: 'Open the bible' };
+  if (P.characters.length < 2) return { title: 'Build your cast', why: 'Give your hero and antagonist a want, a need and a flaw.', view: 'cast', cta: 'Go to Cast' };
+  if (lay.scenes.length < 5 && lay.pageCount < 5) return { title: 'Plan your scenes', why: 'Sketch scenes as cards, give each a goal and a conflict, then put them in order.', view: 'scenes', cta: 'Open the scene board' };
+  if (lay.pageCount < target * 0.9) {
+    const b = currentBeat(P, Math.max(1, lay.pageCount));
+    return { title: `Keep drafting: you're on page ${lay.pageCount}`, why: `You're in ${b.name} (${b.range}). ${b.desc}`, view: 'script', cta: 'Write' };
+  }
+  return { title: 'Start your rewrite', why: 'The draft is in range. Work through one rewrite pass at a time.', view: 'rewrite', cta: 'Open the rewrite checklist' };
+}
+
+Views.idea = {
+  render() {
+    const sub = subOf('idea', 'logline');
+    let body = '';
+    if (sub === 'logline') {
+      body = `<div class="grid2">
+        <div class="stack">
+          ${field('idea.protagonist', 'Protagonist', { rows: 1, hint: 'Who, plus the flaw that makes it hard', ph: 'a rail-yard mechanic who never left home' })}
+          ${field('idea.incident', 'Inciting incident', { rows: 1, hint: 'What knocks their world off balance?' })}
+          ${field('idea.goal', 'Goal', { rows: 1, hint: 'Specific and visible' })}
+          ${field('idea.antagonist', 'Antagonist or obstacle', { rows: 1, hint: 'Who or what actively opposes them?' })}
+          ${field('idea.stakes', 'Stakes', { rows: 1, hint: 'What happens if they fail?' })}
+          ${field('idea.hook', 'The hook', { rows: 1, hint: 'What\'s fresh or ironic about this?' })}
+        </div>
+        <div class="stack">
+          <div><div class="eyebrow" style="margin-bottom:6px">Assembled from your answers</div><div class="builder" id="builder">${builderHTML()}</div></div>
+          ${[1, 2, 3].map((n) => `<div class="stack" style="gap:6px">${field('idea.logline' + n, `Logline, draft ${n}`, { rows: 3 })}
+            <label class="row" style="font-size:13px;gap:6px"><input type="radio" name="chosen" data-k="idea.chosen" value="${n}" ${String(P.idea.chosen || '1') === String(n) ? 'checked' : ''}> Use this one on the Overview and in assistant notes</label></div>`).join('')}
+          <p class="sub">A good logline is about 25–35 words, names a flawed hero and a clear goal, and hints at the ending's stakes. Read it to someone: do they ask “and then what?”</p>
+        </div></div>`;
+    } else if (sub === 'premise') {
+      body = `<div class="stack">
+        <div class="grid3">${field('idea.genre', 'Genre', { input: true })}${field('idea.tone', 'Tone', { input: true })}${field('idea.audience', 'Audience / rating', { input: true })}</div>
+        ${field('idea.comps', 'Comparable titles', { rows: 1, hint: '"X meets Y". Recent and successful' })}
+        ${field('idea.theme', 'Theme', { rows: 2, hint: 'What question does the story ask about how to live?' })}
+        ${field('idea.controlling', 'Controlling idea', { rows: 1, hint: 'The story\'s answer: "___ happens when ___"' })}
+        ${field('idea.cdq', 'Central dramatic question', { rows: 1, hint: 'Will [hero] [achieve goal]?' })}
+        ${field('idea.why', 'Why this story, why you, why now?', { rows: 3 })}
+        ${field('idea.titles', 'Title ideas', { rows: 3 })}
+      </div>`;
+    } else {
+      const w = words(P.idea.synopsis);
+      body = `<div class="stack">
+        <p class="sub">Tell the whole story in present tense, ending included, in about a page (400–600 words). Readers and producers ask for this, and writing it exposes holes before you draft.</p>
+        ${field('idea.synopsis', 'One-page synopsis', { rows: 18 })}
+        <div class="muted num" id="syn-count" style="font-size:13px">${w} words</div></div>`;
+    }
+    return `<div class="view"><div class="hdr"><div><div class="eyebrow">Step 1</div><h1 class="vtitle">The idea</h1>
+      <p class="lede">If you can't say it in one sentence, the story isn't clear yet. Start here.</p></div></div>
+      ${tabs('idea', [['logline', 'Logline'], ['premise', 'Premise & theme'], ['synopsis', 'Synopsis']])}${body}</div>`;
+  },
+  onInput(t) {
+    if ($('#builder')) $('#builder').innerHTML = builderHTML();
+    if ($('#syn-count')) $('#syn-count').textContent = `${words(P.idea.synopsis)} words`;
+  },
+};
+function builderHTML() {
+  const i = P.idea;
+  const g = (v, ph) => (v && v.trim() ? `<mark>${esc(v.trim())}</mark>` : `<span class="gap">${ph}</span>`);
+  return `When ${g(i.incident, 'inciting incident')}, ${g(i.protagonist, 'a flawed protagonist')} must ${g(i.goal, 'reach a goal')} or else ${g(i.stakes, 'the stakes')}, despite ${g(i.antagonist, 'the opposition')}.`;
+}
+
+Views.story = {
+  render() {
+    const film = P.mode === 'film';
+    const lay = getLayout();
+    let body = '';
+    const sub = subOf('story', film ? 'beats' : 'bible');
+    if (film) {
+      const t = P.targetPages;
+      const cur = lay.pageCount ? currentBeat(P, lay.pageCount).idx : -1;
+      if (sub === 'beats') {
+        body = `<p class="sub">Blake Snyder's <i>Save the Cat!</i> beats, with page targets scaled to your ${t}-page length. Your draft is on page ${lay.pageCount || 0}.</p>
+        <div class="panel">${BEATS.map(([name, a, b, desc, q], k) => `<div class="beat ${k === cur ? 'here' : ''}"><div class="n">${k + 1}</div><div>
+          <h3>${name}<span class="pill">${pageRange(a, b, t)}</span>${k === cur ? '<span class="pill acc">Your draft is here</span>' : ''}</h3>
+          <p>${desc} <span class="q">${q}</span></p>
+          <textarea data-k="beats.${k}" id="beat-${k}" rows="2" aria-label="${name}">${esc(P.beats[k] || '')}</textarea></div></div>`).join('')}</div>`;
+      } else if (sub === 'acts') {
+        body = `<div class="panel" style="margin-bottom:14px">${tensionSVG(t)}</div>
+          <div class="acts">${ACTS.map(([k, n, s, a, b, q]) => `<div class="panel stack" style="gap:6px"><div class="eyebrow">${n} · ${pageRange(a, b, t)}</div><h3 style="font-size:15px">${s}</h3><p class="sub" style="margin:0">${q}</p><textarea data-k="acts.${k}" id="act-${k}" rows="7" aria-label="${n}">${esc(P.acts[k] || '')}</textarea></div>`).join('')}</div>
+          <div class="panel" style="margin-top:14px">${field('idea.cdq', 'Central dramatic question', { rows: 1, hint: 'The question the climax answers' })}</div>`;
+      } else if (sub === 'seq') {
+        body = `<p class="sub">Eight movements of roughly ${Math.round(t / 8)} pages, each with its own mini-goal and turn.</p><div class="grid2">${SEQUENCES.map(([n, d], k) => `<div class="panel stack" style="gap:6px"><div class="spread"><h3 style="font-size:15px">${k + 1}. ${n}</h3><span class="pill">pp. ${Math.round((k * t) / 8) + 1}–${Math.round(((k + 1) * t) / 8)}</span></div><p class="sub" style="margin:0">${d}</p><textarea data-k="sequences.${k}" id="seq-${k}" rows="3" aria-label="Sequence ${k + 1}">${esc(P.sequences[k] || '')}</textarea></div>`).join('')}</div>`;
+      } else {
+        body = subplotTable();
+      }
+      return shell(tabs('story', [['beats', 'Beat sheet'], ['acts', 'Three acts'], ['seq', 'Eight sequences'], ['plots', 'Subplots']]) + body);
+    }
+    // TV
+    const acts = TV_STRUCTURE[P.tvFormat];
+    if (sub === 'bible') {
+      body = `<div class="stack">${field('tv.logline', 'Series logline', { rows: 2 })}
+        <div class="grid3">${field('tv.format', 'Format', { input: true, ph: 'Single-cam, serialized' })}${field('tv.network', 'Where it could live', { input: true, ph: 'Streamer, cable, network' })}${field('tv.comps', 'Comparable shows', { input: true })}</div>
+        ${field('tv.world', 'The world', { rows: 3, hint: 'Where and when, and what makes it specific' })}
+        ${field('tv.engine', 'The engine', { rows: 3, hint: 'What generates a new story every episode?' })}
+        ${field('tv.tone', 'Tone', { rows: 2 })}${field('tv.themes', 'Themes', { rows: 2 })}
+        ${field('tv.pilot', 'The pilot', { rows: 3, hint: 'What happens, and how does it set up the series?' })}
+        ${field('tv.future', 'Where could seasons 2–5 go?', { rows: 3 })}</div>`;
+    } else if (sub === 'season') {
+      body = `<div class="stack">${field('tv.seasonStart', 'Where the season starts', { rows: 2 })}${field('tv.midseason', 'Midseason turn', { rows: 2 })}${field('tv.seasonEnd', 'Where the season ends, and what\'s left open', { rows: 2 })}
+        <div class="panel"><h2 class="sec">Episode grid</h2><p class="sub">One row per episode: the A, B and C stories and the season-arc beat.</p><div class="scroll-x"><table class="grid"><thead><tr><th style="width:36px">Ep</th><th>Title</th><th>A story</th><th>B / C story</th><th>Arc beat</th></tr></thead><tbody>
+        ${Array.from({ length: 10 }, (_, k) => `<tr><td class="num" style="padding-top:12px">${k + 1}</td>${['title', 'a', 'b', 'arc'].map((f) => `<td><textarea data-k="tv.episodes.${k}.${f}" id="ep-${k}-${f}" rows="1" aria-label="Episode ${k + 1} ${f}">${esc(getPath(P, `tv.episodes.${k}.${f}`) || '')}</textarea></td>`).join('')}</tr>`).join('')}
+        </tbody></table></div></div></div>`;
+    } else {
+      const ep = state.episode;
+      body = `<div class="row" style="margin-bottom:12px"><label class="f" for="ep-pick" style="grid-template-columns:auto 200px;align-items:center;gap:10px"><span>Episode</span>
+        <select id="ep-pick">${Array.from({ length: 10 }, (_, k) => `<option value="${k}" ${k === ep ? 'selected' : ''}>${k + 1}${getPath(P, `tv.episodes.${k}.title`) ? ' · ' + esc(getPath(P, `tv.episodes.${k}.title`)) : ''}</option>`).join('')}</select></label>
+        <span class="muted" style="font-size:13px">${P.tvFormat === 'hour' ? 'One-hour' : 'Half-hour'} episode, about ${acts.at(-1)[2]} pages. End each act on a question the audience must stay through the break to answer.</span></div>
+        <div class="grid2">${acts.map(([name, a, b]) => `<div class="panel stack" style="gap:8px"><div class="spread"><h3 style="font-size:15px">${name}</h3><span class="pill">pp. ${a}–${b}</span></div>
+          ${['A', 'B', 'C'].map((s) => field(`tv.structure.${ep}.${name.replace(/\s/g, '')}.${s}`, `${s} story`, { rows: 1 })).join('')}
+          ${field(`tv.structure.${ep}.${name.replace(/\s/g, '')}.out`, name === acts.at(-1)[0] ? 'Final button' : 'Act out', { rows: 1, hint: 'The cliffhanger' })}</div>`).join('')}</div>`;
+    }
+    return shell(tabs('story', [['bible', 'Series bible'], ['season', 'Season & episodes'], ['episode', 'Episode structure'], ['plots', 'Subplots']]) + (sub === 'plots' ? subplotTable() : body));
+
+    function shell(inner) {
+      return `<div class="view"><div class="hdr"><div><div class="eyebrow">Step 2</div><h1 class="vtitle">Structure</h1>
+        <p class="lede">${film ? 'Map the shape of the story before you write pages. Fix structure here; it\'s much cheaper than fixing it in a draft.' : 'Pitch the whole show, then break each episode into acts.'}</p></div></div>${inner}</div>`;
+    }
+  },
+  after(main) {
+    const pick = $('#ep-pick', main);
+    if (pick) pick.addEventListener('change', () => { state.episode = +pick.value; renderView(); });
+  },
+};
+function subplotTable() {
+  const cols = P.mode === 'film' ? ACTS.map(([k, n]) => [k, n]) : TV_STRUCTURE[P.tvFormat].map(([n]) => [n.replace(/\s/g, ''), n]);
+  return `<p class="sub">Where does each storyline advance? One row per plot; note its beat in each ${P.mode === 'film' ? 'act' : 'act of the episode'}.</p>
+    <div class="panel scroll-x"><table class="grid"><thead><tr><th style="width:150px">Plot</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}<th style="width:40px"></th></tr></thead><tbody>
+    ${P.subplots.map((s, r) => `<tr><td><input type="text" id="sp-${r}" data-k="subplots.${r}.name" value="${esc(s.name || '')}" aria-label="Plot name"></td>${cols.map(([k, n]) => `<td><textarea id="sp-${r}-${k}" data-k="subplots.${r}.${k}" rows="2" aria-label="${esc(s.name)} ${n}">${esc(s[k] || '')}</textarea></td>`).join('')}<td><button class="btn ghost small" data-act="del-subplot" data-i="${r}" aria-label="Remove row">✕</button></td></tr>`).join('')}
+    </tbody></table><button class="btn small" data-act="add-subplot" style="margin-top:10px">Add a storyline</button></div>`;
+}
+function tensionSVG(t) {
+  const W = 900, H = 170, x0 = 20, x1 = W - 20, base = 120;
+  const X = (p) => x0 + ((p - 1) / 109) * (x1 - x0);
+  const pts = [[1, 10], [12, 18], [25, 40], [45, 46], [55, 64], [66, 54], [75, 28], [85, 48], [99, 92], [106, 78], [110, 44]];
+  let d = `M ${X(pts[0][0])} ${base - pts[0][1]}`;
+  for (let k = 1; k < pts.length; k++) { const [a, ya] = pts[k - 1], [b, yb] = pts[k]; const m = (X(a) + X(b)) / 2; d += ` C ${m} ${base - ya}, ${m} ${base - yb}, ${X(b)} ${base - yb}`; }
+  const marks = [[1, '1'], [12, 'Catalyst'], [25, 'Act I break'], [55, 'Midpoint'], [75, 'All is lost'], [85, 'Act II break'], [99, 'Climax'], [110, String(t)]];
+  return `<svg class="tension" viewBox="0 0 ${W} ${H}" role="img" aria-label="Story tension rising through the three acts">
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="3"/>
+    <line x1="${x0}" x2="${x1}" y1="${base}" y2="${base}" stroke="var(--ink)" stroke-width="1.5"/>
+    ${marks.map(([p, l]) => `<g><line x1="${X(p)}" x2="${X(p)}" y1="${base - 5}" y2="${base + 5}" stroke="var(--ink)"/><text x="${X(p)}" y="${base + 22}" text-anchor="${p === 1 ? 'start' : p === 110 ? 'end' : 'middle'}" font-size="13" fill="var(--ink)" font-family="Instrument Sans, sans-serif">${l}</text>${p > 1 && p < 110 ? `<text x="${X(p)}" y="${base + 40}" text-anchor="middle" font-size="12" fill="var(--muted)" font-family="Instrument Sans, sans-serif">p. ${scale(p, t)}</text>` : ''}</g>`).join('')}
+    <text x="${x0}" y="16" font-size="11" fill="var(--muted)" font-family="Instrument Sans, sans-serif" letter-spacing="1">TENSION</text></svg>`;
+}
+
+Views.cast = {
+  render() {
+    const an = getAnalysis();
+    const list = P.characters;
+    const sel = clamp(state.castSel, 0, Math.max(0, list.length - 1));
+    const known = new Set(list.map((c) => (c.name || '').toUpperCase()));
+    const missing = Object.keys(an.chars).filter((n) => !known.has(n));
+    const c = list[sel];
+    let detail = '<div class="panel"><p class="muted">Add your first character to start a profile.</p></div>';
+    if (c) {
+      const st = an.chars[(c.name || '').toUpperCase()];
+      const lay = getLayout();
+      detail = `<div class="panel stack">
+        <div class="grid3">${field(`characters.${sel}.name`, 'Name', { input: true })}
+          <label class="f" for="c-role"><span>Role</span><select id="c-role" data-k="characters.${sel}.role">${['Protagonist', 'Antagonist', 'Ally', 'Mentor', 'Love interest', 'Supporting', 'Other'].map((r) => `<option ${c.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+          ${field(`characters.${sel}.age`, 'Age', { input: true })}</div>
+        ${st ? `<div class="row"><span class="pill acc">${plural(st.speeches, 'speech')}</span><span class="pill">${st.words} words</span><span class="pill">${plural(st.scenes.size, 'scene')}</span><span class="pill">first speaks p. ${lay.srcPage[st.first] || 1}</span></div>` : '<p class="sub" style="margin:0">Not speaking in the script yet.</p>'}
+        ${field(`characters.${sel}.look`, 'Look & first impression', { rows: 2, hint: 'How we meet them on the page' })}
+        <div class="grid2">${field(`characters.${sel}.want`, 'Want', { rows: 2, hint: 'Conscious, external goal' })}${field(`characters.${sel}.need`, 'Need', { rows: 2, hint: 'What they must learn or accept' })}</div>
+        <div class="grid2">${field(`characters.${sel}.wound`, 'Wound', { rows: 2, hint: 'The past event that shaped them' })}${field(`characters.${sel}.flaw`, 'Flaw & the lie they believe', { rows: 2 })}</div>
+        ${field(`characters.${sel}.arc`, 'Arc', { rows: 2, hint: 'Who they are on page 1 → who they are at the end' })}
+        ${field(`characters.${sel}.voice`, 'Voice', { rows: 2, hint: 'Vocabulary, rhythm, what they never say' })}
+        <div class="grid2">${field(`characters.${sel}.secret`, 'Secret', { rows: 2 })}${field(`characters.${sel}.relationships`, 'Key relationships', { rows: 2 })}</div>
+        ${st && st.lines.length ? `<div><div class="eyebrow" style="margin-bottom:6px">How they sound so far</div><div class="voice">${esc(st.lines.slice(0, 6).join('\n'))}</div></div>` : ''}
+        <div class="row" id="del-char"><button class="btn small danger" data-act="del-char">Remove this character</button></div></div>`;
+    }
+    return `<div class="view"><div class="hdr"><div><div class="eyebrow">Step 3</div><h1 class="vtitle">Cast</h1><p class="lede">Give every major character a want, a need and a flaw that puts them in conflict with someone else.</p></div>
+      <button class="btn primary" data-act="add-char">Add a character</button></div>
+      ${missing.length ? `<div class="banner"><span>Speaking in your script without a profile:</span><span class="row">${missing.slice(0, 8).map((n) => `<button class="btn small" data-act="add-char" data-name="${esc(n)}">+ ${esc(n)}</button>`).join('')}</span></div>` : ''}
+      <div class="cast"><div class="cast-list" role="tablist">${list.map((ch, k) => `<button role="tab" data-act="sel-char" data-i="${k}" aria-selected="${k === sel}"><b>${esc(ch.name || 'Unnamed')}</b><small>${esc(ch.role || '')}${ch.want ? ' · wants ' + esc(ch.want.slice(0, 40)) : ''}</small></button>`).join('')}</div>${detail}</div></div>`;
+  },
+  onInput(t) {
+    if (/\.name$/.test(t.dataset.k) || /\.role$/.test(t.dataset.k)) {
+      const b = $(`.cast-list [data-i="${state.castSel}"]`);
+      const ch = P.characters[state.castSel];
+      if (b && ch) b.innerHTML = `<b>${esc(ch.name || 'Unnamed')}</b><small>${esc(ch.role || '')}</small>`;
+    }
+  },
+};
+
+function sceneRanges() {
+  const s = P.script;
+  const starts = [];
+  s.forEach((b, i) => { if (b.t === 'scene') starts.push(i); });
+  return starts.map((st, k) => ({ start: st, end: (starts[k + 1] ?? s.length) - 1, block: s[st] }));
+}
+function moveScene(from, to) {
+  const r = sceneRanges();
+  if (to < 0 || to >= r.length || from === to) return;
+  const chunk = P.script.slice(r[from].start, r[from].end + 1);
+  P.script.splice(r[from].start, chunk.length);
+  const r2 = sceneRanges();
+  const at = to >= r2.length ? P.script.length : r2[to].start;
+  P.script.splice(at, 0, ...chunk);
+  layoutDirty = true;
+  touch(true);
+}
+
+Views.scenes = {
+  render() {
+    const lay = getLayout(), an = getAnalysis();
+    const ranges = sceneRanges();
+    const cards = ranges.map((r, k) => {
+      const b = r.block;
+      const sc = lay.scenes.find((x) => x.id === b.id);
+      const card = P.cards[b.id] || {};
+      const who = [...new Set(P.script.slice(r.start, r.end + 1).filter((x) => x.t === 'character' && x.x.trim()).map((x) => x.x.replace(/\s*\(.*?\)/g, '').trim().toUpperCase()))];
+      return `<article class="card" draggable="true" data-scene="${k}">
+        <div class="top"><span class="no">${k + 1}</span><span class="muted num" style="font-size:12px">${sc ? `p. ${sc.page} · ${eighths(sc.lines)} pg` : 'empty'}</span></div>
+        <input class="slug" type="text" id="slug-${b.id}" data-slug="${b.id}" value="${esc(b.x)}" placeholder="INT. LOCATION - DAY" aria-label="Scene heading">
+        <div class="who">${who.length ? esc(who.join(', ')) : 'No dialogue yet'}</div>
+        <div class="lab"><span>Goal</span><input class="line" type="text" id="cg-${b.id}" data-k="cards.${b.id}.goal" value="${esc(card.goal || '')}" placeholder="What does someone want?"></div>
+        <div class="lab"><span>Conflict</span><input class="line" type="text" id="cc-${b.id}" data-k="cards.${b.id}.conflict" value="${esc(card.conflict || '')}" placeholder="What's in the way?"></div>
+        <div class="lab"><span>Turn</span><span class="turn" role="group" aria-label="Value shift">${['+-', '-+'].map((v) => `<button data-act="turn" data-id="${b.id}" data-v="${v}" aria-pressed="${card.turn === v}">${v === '+-' ? '+ → –' : '– → +'}</button>`).join('')}</span></div>
+        <div class="row" style="justify-content:space-between;margin-top:4px"><span class="row" style="gap:2px"><button class="btn ghost small" data-act="move" data-k="${k}" data-d="-1" aria-label="Move earlier" ${k === 0 ? 'disabled' : ''}>↑</button><button class="btn ghost small" data-act="move" data-k="${k}" data-d="1" aria-label="Move later" ${k === ranges.length - 1 ? 'disabled' : ''}>↓</button></span><button class="btn small" data-act="write-scene" data-id="${b.id}">Write</button></div>
+      </article>`;
+    }).join('');
+    void an;
+    return `<div class="view wide" style="max-width:1400px"><div class="hdr"><div><div class="eyebrow">Step 4</div><h1 class="vtitle">Scene board</h1>
+      <p class="lede">Every card is a scene in your script. Drag or use the arrows to reorder: the script moves with it. Each scene needs a goal, a conflict and a turn.</p></div>
+      <button class="btn primary" data-act="add-scene">Add a scene at the end</button></div>
+      <div class="board"><div class="cards" id="cards">${cards || '<p class="muted">No scenes yet. Add one, or promote an idea from the pile.</p>'}</div>
+      <aside class="pile"><div class="spread"><h2 class="sec">Idea pile</h2><button class="btn small" data-act="add-idea">New idea</button></div>
+        <p class="sub" style="margin:0">Scenes you might use. Promote one to add it to the end of the script.</p>
+        ${P.ideas.map((it, k) => `<div class="card"><textarea class="short" id="idea-${it.id}" data-k="ideas.${k}.text" rows="2" aria-label="Idea" style="border:0;background:transparent;padding:0">${esc(it.text || '')}</textarea>
+          <div class="row" style="justify-content:space-between"><button class="btn small" data-act="promote" data-i="${k}">Add to script</button><button class="btn ghost small" data-act="del-idea" data-i="${k}" aria-label="Delete idea">✕</button></div></div>`).join('')}
+      </aside></div></div>`;
+  },
+  after(main) {
+    let dragFrom = null;
+    main.addEventListener('dragstart', (e) => { const c = e.target.closest('.card[data-scene]'); if (!c) return; dragFrom = +c.dataset.scene; c.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom)); });
+    main.addEventListener('dragend', () => $$('.card', main).forEach((c) => c.classList.remove('dragging', 'drop')));
+    main.addEventListener('dragover', (e) => { const c = e.target.closest('.card[data-scene]'); if (!c || dragFrom == null) return; e.preventDefault(); $$('.card.drop', main).forEach((x) => x.classList.remove('drop')); c.classList.add('drop'); });
+    main.addEventListener('drop', (e) => { const c = e.target.closest('.card[data-scene]'); if (!c || dragFrom == null) return; e.preventDefault(); moveScene(dragFrom, +c.dataset.scene); dragFrom = null; renderView(); });
+  },
+};
+
+/* ---------- Script view ---------- */
+Views.script = {
+  render() {
+    return `<div class="script-view ${state.focus ? 'focus' : ''}" id="sv">
+      <nav class="nav" id="scene-nav" aria-label="Scenes"></nav>
+      <div class="desk">
+        <div class="toolbar"><div class="els" id="els" ${state.preview ? 'hidden' : ''}>${ELEMENTS.map(([k, label], n) => `<button data-el="${k}" aria-pressed="false" title="${label} (Alt+${n + 1})">${label}<kbd>⌥${n + 1}</kbd></button>`).join('')}</div>
+          <span style="flex:1">${state.preview ? '<span class="muted" style="font-size:13px">Pages as they\'ll print: US Letter, Courier 12pt.</span>' : ''}</span>
+          <button class="btn small ${state.preview ? 'primary' : ''}" data-act="preview" aria-pressed="${state.preview}">${state.preview ? 'Back to writing' : 'See pages'}</button>
+          <button class="btn small" data-act="focus" aria-pressed="${state.focus}">${state.focus ? 'Show panels' : 'Focus'}</button></div>
+        <div class="sheet" id="sheet"></div>
+        <div class="status" id="status"></div>
+      </div>
+      <aside class="companion" id="companion" aria-label="Scene companion"></aside></div>`;
+  },
+  after() {
+    $('#main').style.overflow = 'hidden';
+    const sheet = $('#sheet');
+    if (state.preview) {
+      sheet.innerHTML = `<div class="pages" id="pages">${pagesHTML(true)}</div>`;
+      fitPages();
+    } else {
+      Editor.onChange = (structural) => { touch(structural); scheduleScriptRefresh(); };
+      Editor.onCaret = (i) => scheduleCompanion(i);
+      Editor.mount(sheet);
+      const rev = REVISIONS.find(([r]) => r === P.revision);
+      Editor.el.style.setProperty('--rev', rev ? rev[1] : 'transparent');
+      const target = state.jump != null ? state.jump : 0;
+      state.jump = null;
+      setTimeout(() => { if (!Editor.el) return; Editor.el.focus(); Editor.setCaret(target, target ? 0 : (P.script[0].x || '').length); if (target) Editor.scrollTo(target, true); }, 30);
+    }
+    refreshScriptChrome();
+    renderCompanion(0, true);
+  },
+};
+
+let scriptTimer = null, compTimer = null, lastComp = { scene: -2, page: -1 };
+function scheduleScriptRefresh() { clearTimeout(scriptTimer); scriptTimer = setTimeout(refreshScriptChrome, 350); }
+function scheduleCompanion(i) { clearTimeout(compTimer); compTimer = setTimeout(() => { renderCompanion(i); updateToolbar(i); highlightNav(i); }, 120); }
+
+function refreshScriptChrome() {
+  if (state.view !== 'script') return;
+  const lay = getLayout(), an = getAnalysis();
+  const c = Editor.el ? Editor.caret() : null;
+  const i = c ? c.i : 0;
+  const page = lay.srcPage[i] || 1;
+  const target = P.mode === 'film' ? P.targetPages : TV_STRUCTURE[P.tvFormat].at(-1)[2];
+  $('#status').innerHTML = `<span>Page <b>${lay.pageCount ? page : 0}</b> of ${lay.pageCount} (~${target})</span><span><b>${lay.scenes.length}</b> scenes</span><span><b>${an.words.toLocaleString()}</b> words</span><span>~<b>${lay.pageCount}</b> min</span><span>${esc(P.revision)} draft</span><span class="muted">Tab: next element · Enter: new line · ⌥1–7: set element</span>`;
+  // Scene navigator
+  let html = '', n = 0;
+  P.script.forEach((b, k) => {
+    if (b.t === 'section' && b.x.trim()) html += `<div class="sec">${esc(b.x)}</div>`;
+    if (b.t === 'scene') { n++; html += `<a href="#script" data-jump="${k}"><span class="sn">${n}</span><span class="sh">${esc(b.x || 'Untitled scene')}</span></a>`; }
+  });
+  $('#scene-nav').innerHTML = `<div class="sec">Scenes</div>${html || '<p class="muted" style="font-size:12.5px;padding:4px 8px">Scene headings you write appear here.</p>'}`;
+  highlightNav(i);
+  // Lint underline
+  if (Editor.el) {
+    const flagged = new Set(lint(P, lay, an).filter((l) => l.sev === 'warn').map((l) => l.id));
+    Array.from(Editor.el.children).forEach((d) => d.classList.toggle('lint', flagged.has(d.dataset.id)));
+  }
+  renderCompanion(i, true);
+  updateToolbar(i);
+}
+function updateToolbar(i) {
+  const b = P.script[i];
+  $$('#els button').forEach((btn) => btn.setAttribute('aria-pressed', String(!!b && btn.dataset.el === b.t)));
+}
+function highlightNav(i) {
+  const ranges = sceneRanges();
+  const k = ranges.findIndex((r) => i >= r.start && i <= r.end);
+  $$('#scene-nav a').forEach((a, n) => a.classList.toggle('cur', n === k));
+}
+function sceneIndexAt(i) { return sceneRanges().findIndex((r) => i >= r.start && i <= r.end); }
+
+function renderCompanion(i, force) {
+  const box = $('#companion');
+  if (!box) return;
+  const lay = getLayout(), an = getAnalysis();
+  const page = Math.max(1, lay.srcPage[i] || 1);
+  const k = sceneIndexAt(i);
+  if (!force && lastComp.scene === k && lastComp.page === page) return;
+  if (box.contains(document.activeElement) && document.activeElement.matches('input,textarea') && lastComp.scene === k) return;
+  lastComp = { scene: k, page };
+  const beat = currentBeat(P, page);
+  const r = sceneRanges()[k];
+  const card = r ? (P.cards[r.block.id] || {}) : null;
+  const issues = lint(P, lay, an).filter((l) => r && l.i >= r.start && l.i <= r.end);
+  const stuck = STUCK[(state.stuck ?? Math.floor(Math.random() * STUCK.length)) % STUCK.length];
+  const target = P.mode === 'film' ? P.targetPages : TV_STRUCTURE[P.tvFormat].at(-1)[2];
+  box.innerHTML = `
+    <section class="where"><h3>You are here</h3><b class="num">p. ${page}</b><span class="muted"> of ~${target}</span>
+      <div class="beatname">${esc(beat.name)} <span class="pill">${esc(beat.range)}</span></div><p>${esc(beat.desc)}</p></section>
+    <div class="prompt">${esc(beat.q)}</div>
+    ${r ? `<section class="stack" style="gap:8px"><h3>Scene ${k + 1} card</h3>
+      <label class="f" for="cmp-goal"><span>Goal</span><input type="text" id="cmp-goal" data-k="cards.${r.block.id}.goal" value="${esc(card.goal || '')}" placeholder="What does someone want here?"></label>
+      <label class="f" for="cmp-conf"><span>Conflict</span><input type="text" id="cmp-conf" data-k="cards.${r.block.id}.conflict" value="${esc(card.conflict || '')}" placeholder="What stands in the way?"></label>
+      <div class="row"><span class="eyebrow">Turn</span><span class="turn" role="group" aria-label="Value shift">${['+-', '-+'].map((v) => `<button data-act="turn" data-id="${r.block.id}" data-v="${v}" aria-pressed="${card.turn === v}">${v === '+-' ? '+ → –' : '– → +'}</button>`).join('')}</span></div></section>` : ''}
+    <section><h3>Script notes ${issues.length ? `<span class="pill warn">${issues.length}</span>` : ''}</h3>
+      ${issues.length ? `<div class="lints">${issues.slice(0, 6).map((l) => `<button data-jump="${l.i}"><span class="sev ${l.sev}"></span><span>${esc(l.msg)}</span></button>`).join('')}</div>` : '<p class="muted" style="font-size:13px;margin:0">Nothing flagged in this scene.</p>'}</section>
+    <section><h3>Stuck?</h3><div class="prompt" style="background:var(--surface-2)">${esc(stuck)}</div><button class="btn small" data-act="stuck" style="margin-top:8px">Another prompt</button></section>
+    <section><h3>Keys</h3><div class="kbd" style="grid-template-columns:auto 1fr;font-size:12.5px"><kbd class="k">Tab</kbd><span>Next element type</span><kbd class="k">Enter</kbd><span>New element (smart)</span><kbd class="k">⇧ Enter</kbd><span>Line break</span><kbd class="k">⌥1–7</kbd><span>Set element</span><kbd class="k">Ctrl/⌘ B I U</kbd><span>Bold, italic, underline</span></div></section>`;
+}
+
+function pagesHTML(withTitle) {
+  const lay = getLayout();
+  const runHTML = (c) => {
+    let html = '', k = 0;
+    while (k < c.length) {
+      let j = k; const st = c[k].slice(1).join();
+      while (j < c.length && c[j].slice(1).join() === st) j++;
+      let t = esc(c.slice(k, j).map((x) => x[0]).join(''));
+      const [, b, it, u] = c[k];
+      if (b) t = `<b>${t}</b>`; if (it) t = `<i>${t}</i>`; if (u) t = `<u>${t}</u>`;
+      html += t; k = j;
+    }
+    return html;
+  };
+  let out = '';
+  if (withTitle && (P.title || P.author)) {
+    out += `<div class="pg title"><div class="ln" style="top:3.5in;text-align:center">${esc((P.title || 'Untitled').toUpperCase())}</div>
+      <div class="ln" style="top:calc(3.5in + 36pt);text-align:center">Written by</div><div class="ln" style="top:calc(3.5in + 60pt);text-align:center">${esc(P.author || '')}</div>
+      <div class="ln" style="left:1.5in;width:auto;top:calc(11in - 1.9in)">${esc([P.draftDate, P.contact].filter(Boolean).join('\n'))}</div></div>`;
+  }
+  lay.pages.forEach((page, n) => {
+    out += `<div class="pg">${n ? `<div class="pn">${n + 1}.</div>` : ''}${page.map((ln) => {
+      const top = `calc(1in + ${ln.row * 12}pt)`;
+      const pos = ln.align === 'right' ? `right:${8.5 - RIGHT}in` : `left:${ln.x}in`;
+      return `<div class="ln" style="top:${top};${pos}">${runHTML(ln.c)}</div>`;
+    }).join('')}</div>`;
+  });
+  return out || '<div class="pg"></div>';
+}
+function fitPages() {
+  const pages = $('#pages');
+  if (!pages) return;
+  const w = $('#sheet').clientWidth - 32;
+  pages.style.zoom = String(clamp(w / 816, 0.35, 1));
+}
+
+/* ---------- Rewrite ---------- */
+Views.rewrite = {
+  render() {
+    const sub = subOf('rewrite', 'check');
+    let body = '';
+    if (sub === 'check') {
+      let n = 0;
+      body = `<div class="grid2">${REWRITE_PASSES.map(([name, items]) => `<div class="panel"><h2 class="sec">${name} pass</h2>${items.map((it) => { const key = `${name}-${n++}`; const on = !!P.checklist[key]; return `<label class="check ${on ? 'done' : ''}"><input type="checkbox" data-k="checklist.${key}" ${on ? 'checked' : ''}><span>${esc(it)}</span></label>`; }).join('')}</div>`).join('')}</div>`;
+    } else if (sub === 'lint') {
+      const lay = getLayout(), an = getAnalysis();
+      const all = lint(P, lay, an);
+      const warn = all.filter((l) => l.sev === 'warn'), tips = all.filter((l) => l.sev === 'tip');
+      const row = (l) => `<button data-jump="${l.i}"><span class="sev ${l.sev}"></span><span>${l.i >= 0 ? `<b class="num">p. ${lay.srcPage[l.i] || 1}</b> · ` : ''}${esc(l.msg)}${l.i >= 0 ? `<br><span class="muted" style="font-family:var(--f-script);font-size:12px">${esc((P.script[l.i].x || '').slice(0, 90))}</span>` : ''}</span></button>`;
+      body = `<p class="sub">Automatic checks for common spec-script problems. They're suggestions, not rules: tap one to jump to it in the script.</p>
+        <div class="grid2"><div class="panel"><h2 class="sec">Worth fixing <span class="pill warn">${warn.length}</span></h2><div class="lints">${warn.map(row).join('') || '<p class="muted">Nothing here. Nice.</p>'}</div></div>
+        <div class="panel"><h2 class="sec">Worth a look <span class="pill acc">${tips.length}</span></h2><div class="lints">${tips.map(row).join('') || '<p class="muted">Nothing here.</p>'}</div></div></div>`;
+    } else if (sub === 'feedback') {
+      body = `<p class="sub">Log notes from readers. When two people flag the same thing, it's real, even if their suggested fix is wrong.</p>
+        <div class="panel scroll-x"><table class="grid"><thead><tr><th style="width:140px">From</th><th>Note</th><th>What I'll do</th><th style="width:50px">Done</th><th style="width:40px"></th></tr></thead><tbody>
+        ${P.feedback.map((f, k) => `<tr><td><input type="text" id="fb-${k}-from" data-k="feedback.${k}.from" value="${esc(f.from || '')}" aria-label="From"></td><td><textarea id="fb-${k}-note" data-k="feedback.${k}.note" rows="2" aria-label="Note">${esc(f.note || '')}</textarea></td><td><textarea id="fb-${k}-plan" data-k="feedback.${k}.plan" rows="2" aria-label="Plan">${esc(f.plan || '')}</textarea></td><td style="text-align:center;padding-top:12px"><input type="checkbox" data-k="feedback.${k}.done" ${f.done ? 'checked' : ''} aria-label="Done"></td><td><button class="btn ghost small" data-act="del-fb" data-i="${k}" aria-label="Remove">✕</button></td></tr>`).join('')}
+        </tbody></table><button class="btn small" data-act="add-fb" style="margin-top:10px">Add a note</button></div>`;
+    } else {
+      body = field('notes', 'Notes', { rows: 18 });
+    }
+    return `<div class="view"><div class="hdr"><div><div class="eyebrow">Step 6</div><h1 class="vtitle">Rewrite</h1><p class="lede">Writing is rewriting. Do one pass per focus, and log what readers tell you.</p></div></div>
+      ${tabs('rewrite', [['check', 'Rewrite checklist'], ['lint', 'Script notes'], ['feedback', 'Feedback log'], ['notes', 'Notes']])}${body}</div>`;
+  },
+  onInput(t) { if (t.type === 'checkbox' && t.closest('.check')) t.closest('.check').classList.toggle('done', t.checked); },
+};
+
+/* ---------- Guide ---------- */
+Views.guide = {
+  render() {
+    const sub = subOf('guide', 'keys');
+    let body = '';
+    if (sub === 'keys') {
+      body = `<div class="grid2"><div class="panel"><h2 class="sec">Writing in the editor</h2><p class="sub">Type normally. The editor formats each element to industry margins as you go.</p><div class="kbd">
+        <kbd class="k">Enter</kbd><span>New element, picking the likely next one: after a scene heading comes action; after a character, dialogue; after dialogue, action.</span>
+        <kbd class="k">Tab</kbd><span>Change the current element: action → character → dialogue → parenthetical → transition → scene heading.</span>
+        <kbd class="k">Shift + Tab</kbd><span>Change it the other way.</span>
+        <kbd class="k">Enter on empty line</kbd><span>Turns an empty character or dialogue line back into action.</span>
+        <kbd class="k">Shift + Enter</kbd><span>Line break inside action or dialogue.</span>
+        <kbd class="k">Alt/⌥ + 1–7</kbd><span>Scene heading, action, character, parenthetical, dialogue, transition, act/section.</span>
+        <kbd class="k">Ctrl/⌘ + B, I, U</kbd><span>Bold, italic, underline the selection.</span>
+        <kbd class="k">Ctrl/⌘ + Z</kbd><span>Undo. Ctrl/⌘ + Shift + Z to redo.</span></div></div>
+        <div class="panel"><h2 class="sec">Shortcuts that type for you</h2><div class="kbd">
+        <span>INT. / EXT.</span><span>Start an action line with INT. or EXT. and it becomes a scene heading.</span>
+        <span>Locations</span><span>In a scene heading, locations you've used before are suggested. Tab accepts.</span>
+        <span>Time of day</span><span>Type “ - ” after the location for DAY, NIGHT, CONTINUOUS…</span>
+        <span>Character names</span><span>Names you've used, and your cast list, are suggested as you type.</span>
+        <span>Extensions</span><span>Type “(” after a name for V.O., O.S. or CONT'D.</span>
+        <span>(</span><span>Starting a dialogue line with “(” makes it a parenthetical.</span>
+        <span>Paste</span><span>Paste a scene from any Fountain or plain-text screenplay and it's formatted.</span></div></div></div>`;
+    } else if (sub === 'format') {
+      body = `<div class="grid2"><div class="fmt">INT. DINER - NIGHT
+
+Rain streaks the windows. MAYA (30s,
+tired eyes) slides into a booth.
+
+                      MAYA
+                (quietly)
+          You said you'd come alone.
+
+                      OTIS
+          I did. They followed me.
+
+                                    CUT TO:</div>
+        <div class="panel scroll-x"><table class="grid"><thead><tr><th>Element</th><th>From left</th><th>Rules</th></tr></thead><tbody>
+          <tr><td><b>Scene heading</b></td><td>1.5"</td><td>INT./EXT. LOCATION - DAY/NIGHT, in caps.</td></tr>
+          <tr><td><b>Action</b></td><td>1.5"</td><td>Present tense, what we see and hear. Four lines or fewer.</td></tr>
+          <tr><td><b>Character</b></td><td>3.7"</td><td>Caps. Add (V.O.), (O.S.) or (CONT'D) as needed.</td></tr>
+          <tr><td><b>Parenthetical</b></td><td>3.1"</td><td>Brief and lowercase. Use sparingly.</td></tr>
+          <tr><td><b>Dialogue</b></td><td>2.5"</td><td>Up to 3.5" wide. No quotation marks.</td></tr>
+          <tr><td><b>Transition</b></td><td>right</td><td>CUT TO: and similar, ending at 7.5". Rarely needed.</td></tr></tbody></table>
+          <p class="sub" style="margin-top:12px">US Letter, Courier 12pt, 1" top and bottom margins, 1.5" left, 1" right, page numbers top right. One page is about one minute of screen time. Draftroom's PDF export follows all of this, including (MORE) and (CONT'D) when a speech crosses a page break.</p></div></div>`;
+    } else if (sub === 'fountain') {
+      body = `<div class="panel"><p class="sub">Fountain is the plain-text screenplay format that Highland, WriterSolo, Final Draft (via import), Slugline and many others read. Draftroom exports and imports it, and pasting Fountain into the editor formats it.</p>
+        <div class="scroll-x"><table class="grid"><thead><tr><th>Element</th><th>Type this</th><th>Notes</th></tr></thead><tbody>
+        ${[['Scene heading', 'INT. DINER - NIGHT', 'Starts with INT, EXT, EST or I/E, or force it with a leading period'], ['Character', 'MAYA', 'A line in caps, followed by dialogue'], ['Parenthetical', '(quietly)', 'On its own line under the character'], ['Transition', 'CUT TO:', 'Caps ending in TO:, or force with >'], ['Emphasis', '*italic* **bold** _underline_', ''], ['Section', '# ACT ONE', 'Not printed; shows in the scene list'], ['Note', '[[check this]]', 'Not printed'], ['Title page', 'Title: My Script', 'Key: value lines at the very top']]
+          .map(([a, b, c]) => `<tr><td><b>${a}</b></td><td style="font-family:var(--f-script)">${esc(b)}</td><td class="muted">${c}</td></tr>`).join('')}</tbody></table></div></div>`;
+    } else {
+      body = `<div class="grid2"><div class="panel scroll-x"><h2 class="sec">Typical lengths</h2><table class="grid"><thead><tr><th>Type</th><th>Pages</th><th>Notes</th></tr></thead><tbody>
+        ${[['Feature: comedy / horror', '90–105', 'Shorter and faster.'], ['Feature: drama / thriller', '100–120', ''], ['Half-hour, single-camera', '25–35', 'Film-style format.'], ['Half-hour, multi-camera', '45–55', 'Double-spaced dialogue, caps action.'], ['One-hour drama', '50–65', 'Teaser plus 4–5 acts; streaming often drops act breaks.'], ['Short film', '5–15', 'Festivals favor under 15 minutes.']]
+          .map(([a, b, c]) => `<tr><td><b>${a}</b></td><td class="num">${b}</td><td class="muted">${c}</td></tr>`).join('')}</tbody></table></div>
+        <div class="panel"><h2 class="sec">Words to know</h2><dl class="gloss">
+        ${[['Spec script', 'Written on your own to sell or show. No camera directions or scene numbers.'], ['Slugline', 'Another name for the scene heading.'], ['Beat', 'A single story moment, or a pause in dialogue.'], ['Button', 'A strong last line or image that ends a scene.'], ['Cold open', 'The pre-credits scene of a TV episode.'], ['Act out', 'The cliffhanger at the end of a TV act.'], ['Bible', 'The document describing a series: world, characters, arcs, future seasons.'], ['Eighths', 'Scene length in eighths of a page, used to schedule a shoot.'], ['Revision colors', 'Changed pages in production drafts are printed on a new color: white, blue, pink, yellow, green, goldenrod…']]
+          .map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl></div></div>`;
+    }
+    return `<div class="view"><div class="hdr"><div><div class="eyebrow">Reference</div><h1 class="vtitle">Guide</h1><p class="lede">How the editor works, and the format rules readers expect.</p></div></div>
+      ${tabs('guide', [['keys', 'Editor & shortcuts'], ['format', 'Screenplay format'], ['fountain', 'Fountain'], ['lengths', 'Lengths & terms']])}${body}</div>`;
+  },
+};
+
+/* =====================================================================
+   Export: PDF, print, import
+   ===================================================================== */
+function exportPDF() {
+  const J = window.jspdf && window.jspdf.jsPDF;
+  if (!J) { if (!inFrame) { printScript(); return; } toast('The PDF maker didn\'t load. Check your connection and try again.'); return; }
+  const lay = getLayout();
+  const doc = new J({ unit: 'pt', format: 'letter' });
+  doc.setProperties({ title: P.title || 'Screenplay', author: P.author || '', creator: 'Draftroom' });
+  const W = 612;
+  const style = (b, i) => (b && i ? 'bolditalic' : b ? 'bold' : i ? 'italic' : 'normal');
+  const draw = (c, x, y, align) => {
+    const width = c.length * 7.2;
+    if (align === 'right') x -= width;
+    if (align === 'center') x -= width / 2;
+    let k = 0;
+    while (k < c.length) {
+      let j = k; const st = c[k].slice(1).join();
+      while (j < c.length && c[j].slice(1).join() === st) j++;
+      const [, b, i, u] = c[k];
+      const run = c.slice(k, j).map((q) => q[0]).join('');
+      doc.setFont('courier', style(b, i));
+      doc.text(run, x + k * 7.2, y);
+      if (u) doc.line(x + k * 7.2, y + 1.5, x + j * 7.2, y + 1.5);
+      k = j;
+    }
+  };
+  doc.setFontSize(12);
+  let first = true;
+  if (P.title || P.author) {
+    const center = (t, y) => draw(styled(t), W / 2, y, 'center');
+    center((P.title || 'Untitled').toUpperCase(), 252);
+    center('Written by', 288);
+    center(P.author || '', 312);
+    [P.draftDate, ...(P.contact || '').split('\n')].filter(Boolean).forEach((t, k) => draw(styled(t), 108, 648 + k * 12));
+    doc.outline.add(null, 'Title page', { pageNumber: 1 });
+    first = false;
+  }
+  const offset = first ? 0 : 1;
+  lay.pages.forEach((page, n) => {
+    if (!first || n) doc.addPage();
+    if (n) { doc.setFont('courier', 'normal'); doc.text(`${n + 1}.`, RIGHT * 72, 36, { align: 'right' }); }
+    for (const ln of page) draw(ln.c, ln.x * 72, 72 + ln.row * 12 + 9.6, ln.align);
+  });
+  for (const o of lay.outline) doc.outline.add(null, o.title, { pageNumber: o.page + offset });
+  saveFile(`${fileBase()}.pdf`, doc.output('arraybuffer'), 'application/pdf');
+}
+
+function printScript() {
+  $('#print-root').innerHTML = pagesHTML(true);
+  window.print();
+}
+
+function importFile(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    const text = String(r.result || '');
+    try {
+      if (/\.json$/i.test(file.name)) {
+        const p = JSON.parse(text);
+        if (!p || !Array.isArray(p.script)) throw new Error('not a project');
+        p.id = uid(); delete p.example;
+        addProject(p); navigate('home'); toast(`Imported “${p.title || 'Untitled'}”.`);
+      } else {
+        const f = parseFountain(text);
+        const p = blankProject(f.title || file.name.replace(/\.[^.]+$/, ''));
+        Object.assign(p, { author: f.author, contact: f.contact, draftDate: f.draftDate, script: f.blocks.length ? f.blocks : p.script });
+        f.blocks.forEach((b) => { if (b.t === 'scene' && b.syn) p.cards[b.id] = { goal: b.syn }; });
+        addProject(p); navigate('script'); toast(`Imported ${plural(f.blocks.filter((b) => b.t === 'scene').length, 'scene')}.`);
+      }
+    } catch (e) { toast('That file couldn\'t be read. Import a .fountain, .txt or Draftroom backup (.json).'); }
+  };
+  r.readAsText(file);
+}
+
+/* =====================================================================
+   Assistant: AI notes when this page can ask Claude, prompts otherwise
+   ===================================================================== */
+const Assist = { history: [], busy: null };
+
+function storyContext() {
+  const i = P.idea;
+  const lines = [
+    `Project: "${P.title || 'Untitled'}" (${P.mode === 'film' ? `feature film, target ${P.targetPages} pages` : `${P.tvFormat} TV episode`}).`,
+    chosenLogline() && `Logline: ${chosenLogline()}`,
+    i.genre && `Genre: ${i.genre}. Tone: ${i.tone || 'n/a'}.`,
+    i.theme && `Theme: ${i.theme}`,
+    i.controlling && `Controlling idea: ${i.controlling}`,
+    i.synopsis && `Synopsis: ${i.synopsis.slice(0, 1800)}`,
+  ].filter(Boolean);
+  if (P.mode === 'tv' && P.tv.engine) lines.push(`Series engine: ${P.tv.engine}`);
+  if (P.characters.length) lines.push('Characters:\n' + P.characters.map((c) => `- ${c.name || 'Unnamed'} (${c.role || 'role n/a'}${c.age ? ', ' + c.age : ''}): wants ${c.want || '?'}; needs ${c.need || '?'}; flaw: ${c.flaw || '?'}`).join('\n'));
+  const beats = BEATS.map((b, k) => (P.beats[k] ? `- ${b[0]}: ${P.beats[k]}` : '')).filter(Boolean);
+  if (beats.length) lines.push('Planned beats:\n' + beats.join('\n'));
+  return lines.join('\n');
+}
+function sceneFountain(k) {
+  const r = sceneRanges()[k];
+  if (!r) return '';
+  const tmp = { ...P, title: '', author: '', contact: '', draftDate: '', script: P.script.slice(r.start, r.end + 1) };
+  return toFountain(tmp).split('\n').slice(3).join('\n').trim().slice(0, 7000);
+}
+function currentSceneIndex() {
+  const c = Editor.el && Editor.caret();
+  if (c) return sceneIndexAt(c.i);
+  return Math.max(0, sceneRanges().length - 1);
+}
+function sceneContext() {
+  const k = currentSceneIndex();
+  const r = sceneRanges()[k];
+  if (!r) return 'The writer has not started a scene yet.';
+  const lay = getLayout();
+  const page = lay.srcPage[r.start] || 1;
+  const beat = currentBeat(P, page);
+  const card = P.cards[r.block.id] || {};
+  return `Current scene (scene ${k + 1}, page ${page}, beat: ${beat.name}):\n${card.goal ? `Scene goal: ${card.goal}\n` : ''}${card.conflict ? `Scene conflict: ${card.conflict}\n` : ''}\`\`\`\n${sceneFountain(k)}\n\`\`\``;
+}
+function firstPages(n) {
+  const lay = getLayout();
+  const upto = lay.srcPage.findIndex((p) => p > n);
+  const tmp = { ...P, script: P.script.slice(0, upto < 0 ? P.script.length : upto) };
+  return toFountain(tmp).slice(0, 14000);
+}
+
+const PRESETS = {
+  home: [['What should I work on next?', () => `${storyContext()}\n\nDraft length: ${getLayout().pageCount} pages. Based on what's planned and written, what are the two or three most useful things I could work on next, and why?`]],
+  idea: [
+    ['Five sharper loglines', () => `${storyContext()}\n\nLogline builder answers: ${JSON.stringify({ protagonist: P.idea.protagonist, incident: P.idea.incident, goal: P.idea.goal, antagonist: P.idea.antagonist, stakes: P.idea.stakes, hook: P.idea.hook })}\n\nWrite five distinct logline options (25–35 words each) in different flavors, then say in one line which is strongest and why.`],
+    ['Stress-test my premise', () => `${storyContext()}\n\nPlay a tough development executive. What are the three biggest weaknesses or unanswered questions in this premise, and one concrete way to fix each?`],
+  ],
+  story: [
+    ['Suggest beats from my idea', () => `${storyContext()}\n\nPropose a beat sheet for this story using the 15 Save the Cat beats, one or two sentences each. Keep what I've already planned and fill the gaps.`],
+    ['Find the weak spot', () => `${storyContext()}\n\nWhere is this structure weakest (for example a passive hero, a soft midpoint, or an ending that isn't earned)? Give specific fixes.`],
+  ],
+  cast: [
+    ['Deepen this character', () => { const c = P.characters[state.castSel] || {}; return `${storyContext()}\n\nFocus on ${c.name || 'this character'}: ${JSON.stringify(c)}\n\nSuggest a sharper want/need contradiction, a specific wound, and three behaviors that show the flaw on screen without dialogue.`; }],
+    ['Make the voices distinct', () => `${storyContext()}\n\nSample dialogue by character:\n${Object.values(getAnalysis().chars).slice(0, 6).map((c) => `${c.name}: ${c.lines.slice(0, 5).join(' / ')}`).join('\n')}\n\nHow could each main character sound more distinct? Give each a speech pattern and one rewritten sample line.`],
+  ],
+  scenes: [
+    ['Spot missing scenes', () => `${storyContext()}\n\nScene list:\n${sceneRanges().map((r, k) => `${k + 1}. ${r.block.x} (goal: ${(P.cards[r.block.id] || {}).goal || '?'})`).join('\n')}\n\nWhat scenes seem to be missing, redundant, or out of order? Be specific.`],
+  ],
+  script: [
+    ['Notes on this scene', () => `${storyContext()}\n\n${sceneContext()}\n\nGive notes on this scene: is the goal clear, is there conflict, does it turn, does it enter late and leave early? Three to five specific notes, most important first.`],
+    ['Sharpen the dialogue', () => `${storyContext()}\n\n${sceneContext()}\n\nPoint to the three lines of dialogue that are most on-the-nose or flat, and offer a sharper alternative for each with more subtext. Keep each character's voice.`],
+    ['What could happen next?', () => `${storyContext()}\n\n${sceneContext()}\n\nOffer three different options for the next scene, each in two or three sentences, ranging from expected to surprising. Say which pushes the story hardest.`],
+    ['Is this scene turning?', () => `${storyContext()}\n\n${sceneContext()}\n\nWhat value is at stake in this scene, where does it start (+ or –) and where does it end? If it doesn't turn, suggest how it could.`],
+  ],
+  rewrite: [['Coverage on my first pages', () => `${storyContext()}\n\nFirst pages of the draft:\n\`\`\`\n${firstPages(10)}\n\`\`\`\n\nWrite brief studio-style coverage for these opening pages: premise, character, dialogue, structure, each rated Excellent/Good/Fair/Poor with one line of why, then the three most important notes.`]],
+  guide: [['Explain a formatting rule', () => 'Explain the most common screenplay formatting mistakes new writers make, with a short Fountain example of each fixed.']],
+};
+const SYSTEM = 'You are a script consultant working inside Draftroom, a screenwriting app. The writer owns the story: give specific, practical notes and options, never rewrite their whole script, and respect their voice. Keep answers under 350 words unless asked for more. Use short headings or bullets. When you show sample lines, format them as screenplay text in Fountain inside ``` fences.\n\n';
+
+function mdLite(s) {
+  const blocks = String(s).split(/```(?:\w+)?\n?/);
+  return blocks.map((b, k) => {
+    if (k % 2) return `<pre>${esc(b.replace(/\n$/, ''))}</pre>`;
+    const lines = esc(b).split('\n');
+    let html = '', list = null;
+    const inline = (t) => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<i>$2</i>');
+    for (const l of lines) {
+      const m = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+      if (m) { if (!list) { list = /^\s*\d/.test(l) ? 'ol' : 'ul'; html += `<${list}>`; } html += `<li>${inline(m[1])}</li>`; continue; }
+      if (list) { html += `</${list}>`; list = null; }
+      const h = l.match(/^#{1,4}\s+(.*)/);
+      if (h) html += `<h4>${inline(h[1])}</h4>`; else if (l.trim()) html += `<p>${inline(l)}</p>`;
+    }
+    if (list) html += `</${list}>`;
+    return html;
+  }).join('');
+}
+
+function refreshAssistant() {
+  const d = $('#drawer');
+  if (d.hidden) return;
+  const out = $('#assist-out');
+  const presets = PRESETS[state.view] || [];
+  const ai = !!caps.sample;
+  $('#assist-form').hidden = !ai;
+  let html = '';
+  if (ai) {
+    html += `<div><div class="eyebrow" style="margin-bottom:6px">Ask about ${esc(VIEWS.find(([v]) => v === state.view)[1].toLowerCase())}</div><div class="presets">${presets.map(([l], k) => `<button data-preset="${k}">${esc(l)}</button>`).join('')}</div></div>`;
+    html += Assist.history.map((h) => `<div class="answer"><div class="q">${esc(h.q)}</div><div class="a">${h.a ? mdLite(h.a) : '<span class="muted">Thinking…</span>'}</div>${h.a && !h.busy ? `<button class="btn small ghost" data-copy="${Assist.history.indexOf(h)}">Copy</button>` : ''}</div>`).reverse().join('');
+    $('#assist-note').textContent = 'Notes use your project details.';
+  } else {
+    const k = (state.stuck ?? 0) % STUCK.length;
+    html += `<div class="deck">${esc(STUCK[k])}</div><button class="btn small" data-act="stuck">Another prompt</button>
+      <p class="sub">${inFrame ? 'AI notes aren\'t available in this view.' : 'AI notes (feedback on scenes, logline options, dialogue punch-ups) work when you open Draftroom from its claude.ai link.'} The prompts above, the beat guidance in the script companion and the automatic script notes work everywhere.</p>`;
+  }
+  out.innerHTML = html;
+}
+
+async function ask(q, input) {
+  if (!caps.sample || Assist.busy) return;
+  const entry = { q, a: '', busy: true };
+  Assist.history.push(entry);
+  const ctl = new AbortController();
+  Assist.busy = ctl;
+  $('#assist-send').textContent = 'Stop';
+  refreshAssistant();
+  try {
+    const r = await caps.sample(SYSTEM + input, { cache: false, signal: ctl.signal, onText: ({ text }) => { entry.a = text; const el = $$('#assist-out .answer .a')[0]; if (el) el.innerHTML = mdLite(text); } });
+    entry.a = r.text + (r.truncated ? '\n\n(Answer cut short.)' : '');
+  } catch (e) {
+    const code = e && e.code;
+    if (code === 'not_granted') { caps.sample = null; entry.a = 'AI notes weren\'t allowed, so they\'re switched off for this visit.'; }
+    else if (code === 'cancelled') entry.a = (entry.a || '') + '\n\n(Stopped.)';
+    else if (code === 'rate_limited') entry.a = 'Too many requests just now. Wait a minute and try again.';
+    else entry.a = (e && e.text) || 'Something went wrong getting notes. Try again.';
+  } finally {
+    entry.busy = false;
+    Assist.busy = null;
+    $('#assist-send').textContent = 'Ask';
+    refreshAssistant();
+  }
+}
+
+/* =====================================================================
+   Events
+   ===================================================================== */
+function bindShell() {
+  $('#main').addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.dataset.slug) {
+      const b = P.script.find((x) => x.id === t.dataset.slug);
+      if (b) { b.x = t.value.toUpperCase(); touch(true); }
+      return;
+    }
+    if (!t.dataset.k || (Editor.el && Editor.el.contains(t))) return;
+    let v = t.type === 'checkbox' ? t.checked : t.type === 'radio' ? t.value : t.value;
+    if (t.type === 'number') v = +t.value;
+    setPath(P, t.dataset.k, v);
+    touch();
+    const view = Views[state.view];
+    if (view.onInput) view.onInput(t);
+  });
+  $('#main').addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.tagName === 'SELECT' && t.dataset.k) { setPath(P, t.dataset.k, t.value); touch(); const v = Views[state.view]; if (v.onInput) v.onInput(t); }
+  });
+  document.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-go]');
+    if (go) { navigate(go.dataset.go); return; }
+    const tab = e.target.closest('[data-tab]');
+    if (tab) { const [v, s] = tab.dataset.tab.split(':'); state.sub[v] = s; renderView(); return; }
+    const open = e.target.closest('[data-open]');
+    if (open && !open.closest('#menu')) { openProject(open.dataset.open); return; }
+    const jump = e.target.closest('[data-jump]');
+    if (jump) { e.preventDefault(); jumpTo(+jump.dataset.jump); return; }
+    const el = e.target.closest('[data-el]');
+    if (el && Editor.el) { e.preventDefault(); const c = Editor.caret(); Editor.el.focus(); if (!c) Editor.setCaret(P.script.length - 1, 0); Editor.setType(el.dataset.el); return; }
+    const preset = e.target.closest('[data-preset]');
+    if (preset) { const [label, fn] = PRESETS[state.view][+preset.dataset.preset]; ask(label, fn()); return; }
+    const copy = e.target.closest('[data-copy]');
+    if (copy) { const text = Assist.history[+copy.dataset.copy].a; navigator.clipboard.writeText(text).then(() => toast('Copied.'), () => toast('Copy isn\'t available here. Select the text instead.')); return; }
+    const act = e.target.closest('[data-act]');
+    if (act) Actions[act.dataset.act]?.(act);
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); Store.flush(); toast('Saved.'); }
+    if (e.key === 'Escape') closeMenu();
+    const card = e.target.closest && e.target.closest('.logline-card[data-go]');
+    if (card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate('idea'); }
+  });
+  $('#main').addEventListener('mousedown', (e) => { if (e.target.closest('[data-el]')) e.preventDefault(); });
+  $('#btn-projects').addEventListener('click', (e) => projectsMenu(e.currentTarget));
+  $('#btn-export').addEventListener('click', (e) => exportMenu(e.currentTarget));
+  $('#btn-theme').addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme;
+    const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('draftroom.theme', next); } catch (err) { /* ignore */ }
+  });
+  const toggleAssist = (open) => {
+    const d = $('#drawer');
+    d.hidden = open === undefined ? !d.hidden : !open;
+    $('#btn-assist').setAttribute('aria-pressed', String(!d.hidden));
+    refreshAssistant();
+    if (state.view === 'script' && state.preview) setTimeout(fitPages, 0);
+  };
+  $('#btn-assist').addEventListener('click', () => toggleAssist());
+  $('#btn-close-assist').addEventListener('click', () => toggleAssist(false));
+  $('#assist-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (Assist.busy) { Assist.busy.abort(); return; }
+    const q = $('#assist-q').value.trim();
+    if (!q) return;
+    $('#assist-q').value = '';
+    const scene = state.view === 'script' ? `\n\n${sceneContext()}` : '';
+    ask(q, `${storyContext()}${scene}\n\nThe writer asks: ${q}`);
+  });
+  $('#assist-q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#assist-form').requestSubmit(); } });
+  $('#assist-out').addEventListener('click', (e) => { const a = e.target.closest('[data-act="stuck"]'); if (a) { e.stopPropagation(); state.stuck = (state.stuck ?? 0) + 1; refreshAssistant(); } }, true);
+  $('#file-in').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
+  window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== state.view) navigate(v); });
+  window.addEventListener('resize', () => { if (state.preview) fitPages(); });
+  window.addEventListener('beforeunload', () => { Store.writeLocal(); });
+}
+
+function jumpTo(i) {
+  if (i < 0) return;
+  if (state.view !== 'script' || state.preview) { state.preview = false; state.jump = i; navigate('script'); return; }
+  Editor.el.focus();
+  Editor.setCaret(i, 0);
+  Editor.scrollTo(i, true);
+}
+
+const Actions = {
+  'new-project': () => { const p = blankProject('Untitled'); addProject(p); navigate('home'); toast('New project created. Give it a title in Settings.'); },
+  'keep-example': () => { delete P.example; touch(); renderView(); },
+  import: () => $('#file-in').click(),
+  'add-subplot': () => { P.subplots.push({ name: '' }); touch(); renderView(); },
+  'del-subplot': (b) => { P.subplots.splice(+b.dataset.i, 1); touch(); renderView(); },
+  'add-char': (b) => { P.characters.push({ id: uid(), name: b.dataset.name ? b.dataset.name[0] + b.dataset.name.slice(1).toLowerCase() : '', role: P.characters.length ? 'Supporting' : 'Protagonist' }); state.castSel = P.characters.length - 1; touch(); renderView(); if (!b.dataset.name) setTimeout(() => $(`#f-characters-${state.castSel}-name`)?.focus(), 0); },
+  'sel-char': (b) => { state.castSel = +b.dataset.i; renderView(); refreshAssistant(); },
+  'del-char': () => { $('#del-char').innerHTML = `<span class="confirm">Remove ${esc(P.characters[state.castSel].name || 'this character')}? Their lines in the script stay. <button class="btn small danger" data-act="del-char-yes">Remove</button><button class="btn small" data-act="del-char-no">Keep</button></span>`; },
+  'del-char-yes': () => { P.characters.splice(state.castSel, 1); state.castSel = 0; touch(); renderView(); },
+  'del-char-no': () => renderView(),
+  turn: (b) => { const c = P.cards[b.dataset.id] || (P.cards[b.dataset.id] = {}); c.turn = c.turn === b.dataset.v ? '' : b.dataset.v; touch(); $$(`[data-act="turn"][data-id="${b.dataset.id}"]`).forEach((x) => x.setAttribute('aria-pressed', String(c.turn === x.dataset.v))); },
+  move: (b) => { moveScene(+b.dataset.k, +b.dataset.k + +b.dataset.d); renderView(); },
+  'write-scene': (b) => { const i = P.script.findIndex((x) => x.id === b.dataset.id); jumpTo(i); },
+  'add-scene': () => { const b = { id: uid(), t: 'scene', x: '' }; P.script.push(b, { id: uid(), t: 'action', x: '' }); touch(true); jumpTo(P.script.length - 2); },
+  'add-idea': () => { P.ideas.unshift({ id: uid(), text: '' }); touch(); renderView(); setTimeout(() => $(`#idea-${P.ideas[0].id}`)?.focus(), 0); },
+  'del-idea': (b) => { P.ideas.splice(+b.dataset.i, 1); touch(); renderView(); },
+  promote: (b) => { const it = P.ideas.splice(+b.dataset.i, 1)[0]; const s = { id: uid(), t: 'scene', x: '' }; P.script.push(s, { id: uid(), t: 'action', x: it.text || '' }); P.cards[s.id] = { goal: it.text || '' }; touch(true); renderView(); toast('Added to the end of the script. Give it a scene heading.'); },
+  'add-fb': () => { P.feedback.push({ from: '', note: '', plan: '', done: false }); touch(); renderView(); },
+  'del-fb': (b) => { P.feedback.splice(+b.dataset.i, 1); touch(); renderView(); },
+  preview: () => { if (Editor.el) Editor.readDOM(); state.preview = !state.preview; renderView(); },
+  focus: () => { state.focus = !state.focus; $('#sv').classList.toggle('focus', state.focus); const btn = $('[data-act="focus"]'); btn.textContent = state.focus ? 'Show panels' : 'Focus'; btn.setAttribute('aria-pressed', String(state.focus)); },
+  stuck: () => { state.stuck = (state.stuck ?? Math.floor(Math.random() * STUCK.length)) + 1; if (state.view === 'script') { const c = Editor.el && Editor.caret(); renderCompanion(c ? c.i : 0, true); } },
+};
+
+/* =====================================================================
+   Boot
+   ===================================================================== */
+function boot() {
+  try { applyTheme(localStorage.getItem('draftroom.theme')); } catch (e) { /* ignore */ }
+  const saved = Store.readLocal();
+  if (saved && saved.projects && Object.keys(saved.projects).length) LIB = saved;
+  else { const p = sampleProject(); LIB = { current: p.id, projects: { [p.id]: p } }; }
+  for (const id in LIB.projects) normalize(LIB.projects[id]);
+  bindShell();
+  const v = location.hash.slice(1);
+  state.view = VIEWS.some(([x]) => x === v) ? v : 'home';
+  openProject(LIB.current, true);
+  Store.status(Store.writeLocal() ? 'Saved in this browser' : 'Not saved: export a backup', false);
+  // Light up runtime capabilities when this page runs as a claude.ai artifact.
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('sample').then((s) => { caps.sample = s; refreshAssistant(); }).catch(() => {});
+    window.claude.use('downloads').then((d) => { caps.downloads = d; }).catch(() => {});
+    Promise.all([window.claude.use('db'), window.claude.use('user')]).then(async ([db, user]) => {
+      if (!db || !user) return;
+      const id = await user.id();
+      if (!id) return;
+      caps.db = db; caps.userId = id;
+      await Store.sync();
+      if (state.view === 'home') renderView();
+    }).catch(() => {});
+  }
+}
+boot();
+
+})();
+</script>
+
+</body>
+</html>

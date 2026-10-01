@@ -192,6 +192,41 @@
   @media (max-width: 560px) {
     .form-grid { grid-template-columns: 1fr; }
   }
+
+  /* "Save as PDF" prints the current view via the browser's own print-to-PDF,
+     so the done-task strikethrough (plain CSS, already above) carries over
+     with no Acrobat dependency. Force the light palette regardless of the
+     viewer's theme, and strip away everything that isn't checklist content. */
+  @media print {
+    :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+      color-scheme: light;
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --surface-2: #eef1ea;
+      --border: #c7d0c4;
+      --ink: #16211c;
+      --ink-2: #4c584f;
+      --ink-muted: #5c675f;
+      --accent: #1f5d5b;
+      --accent-strong: #123f3d;
+      --accent-soft: #dcece7;
+      --accent-2: #2a5c8a;
+      --accent-2-soft: #e2ecf5;
+      --good: #0ca30c;
+      --warning: #b9790c;
+      --critical: #c23434;
+      --shadow: none;
+    }
+    body { background: #fff; padding: 0; }
+    #app { max-width: none; gap: 12px; }
+    .card { box-shadow: none; border: 1px solid var(--border); }
+    .item-row:hover, .hire-card:hover { background: none; }
+    .sync-pill, .tagline, .tabs, .phase-nav,
+    .add-task-btn, .add-task-form, .item-remove,
+    .btn, #add-hire-form { display: none !important; }
+    .phase-section, .item-row { break-inside: avoid; }
+    .card.pad { padding: 10px 0; }
+  }
 </style>
 
 <div id="app"></div>
@@ -905,7 +940,8 @@
             '<h2 class="detail-name">' + escapeHtml(hire.name) + "</h2>" +
             '<div class="detail-meta">' + escapeHtml(hire.role || "New hire") + " · Manager: " + escapeHtml(hire.managerName || "—") + " · Starts " + fmtDateShort(startTs) + "</div>" +
           "</div>" +
-          '<div style="display:flex;gap:8px;">' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button class="btn" data-action="print-pdf" data-title="' + escapeHtml(hire.name + " — " + mode.label) + '" type="button">Save as PDF</button>' +
             '<button class="btn" data-action="toggle-share" data-id="' + escapeHtml(hire.id) + '" type="button">Share with new hire</button>' +
             '<button class="btn btn-ghost btn-danger" data-action="remove-hire" data-id="' + escapeHtml(hire.id) + '" type="button">Remove</button>' +
           "</div>" +
@@ -950,9 +986,12 @@
     return (
       renderTopbar() +
       '<div class="card pad" style="display:flex;flex-direction:column;gap:16px;">' +
-        '<div>' +
-          '<h2 class="detail-name">Welcome, ' + firstName + "</h2>" +
-          '<div class="detail-meta">Your 90-day plan · started ' + fmtDateShort(startTs) + "</div>" +
+        '<div class="detail-top">' +
+          '<div>' +
+            '<h2 class="detail-name">Welcome, ' + firstName + "</h2>" +
+            '<div class="detail-meta">Your 90-day plan · started ' + fmtDateShort(startTs) + "</div>" +
+          "</div>" +
+          '<button class="btn" data-action="print-pdf" data-title="' + escapeHtml((hire.name || "New Hire") + " — New Hire Checklist") + '" type="button">Save as PDF</button>' +
         "</div>" +
         stats +
       "</div>" +
@@ -979,6 +1018,21 @@
 
     var dismiss = e.target.closest('[data-action="dismiss-error"]');
     if (dismiss) { Store.syncError = null; render(); return; }
+
+    var printPdf = e.target.closest('[data-action="print-pdf"]');
+    if (printPdf) {
+      var prevTitle = document.title;
+      document.title = printPdf.getAttribute("data-title") || prevTitle;
+      // window.print() isn't guaranteed to block until the dialog closes in
+      // every browser, so restore the title on the "afterprint" event rather
+      // than right after the call.
+      window.addEventListener("afterprint", function restoreTitle() {
+        document.title = prevTitle;
+        window.removeEventListener("afterprint", restoreTitle);
+      });
+      window.print();
+      return;
+    }
 
     var toggleShare = e.target.closest('[data-action="toggle-share"]');
     if (toggleShare) {

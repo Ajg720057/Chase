@@ -9,6 +9,8 @@ import sys
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import DictionaryObject, NameObject, TextStringObject, BooleanObject
 
 from pdf_data import (
     MANAGER_PHASES, MANAGER_ITEMS,
@@ -135,18 +137,40 @@ def draw_phase_band(c, y, label, window):
     return y - PHASE_BAND_H - 10
 
 
-def draw_row(c, y, prefix, task_value, timing_value):
+def strike_js(done_name, strike_name, task_name):
+    # Runs when the checkbox is clicked (Acrobat/Reader only - see README note).
+    # Re-derives state from the checkbox itself so it's correct either way,
+    # rather than just toggling, in case the script ever reruns.
+    return (
+        'var on = this.getField("%s").valueAsString != "Off";'
+        'var s = this.getField("%s"); if (s) s.display = on ? display.visible : display.hidden;'
+        'var t = this.getField("%s"); if (t) t.textFont = on ? font.HelvI : font.Helv;'
+    ) % (done_name, strike_name, task_name)
+
+
+def draw_row(c, y, prefix, task_value, timing_value, actions):
     x = MARGIN_L
     top = y
+    done_name = prefix + "_done"
+    task_name = prefix + "_task"
+    strike_name = prefix + "_strike"
+
     c.acroForm.checkbox(
-        name=prefix + "_done", x=x, y=top - 16, size=13, checked=False,
+        name=done_name, x=x, y=top - 16, size=13, checked=False,
         buttonStyle="check", fillColor=WHITE, borderColor=FIELD_BORDER,
         borderWidth=0.7, fieldFlags="", tooltip="Mark done",
     )
     x += COL_CHECK_W + COL_GAP
     c.acroForm.textfield(
-        name=prefix + "_task", value=task_value, x=x, y=top - ROW_H, width=COL_TASK_W,
+        name=task_name, value=task_value, x=x, y=top - ROW_H, width=COL_TASK_W,
         height=ROW_H, fieldFlags="multiline", maxlen=400, **FIELD_KW,
+    )
+    # Thin bar overlaid on the task field, hidden until the checkbox is
+    # ticked - a strikethrough that works without rich-text form fields.
+    c.acroForm.textfield(
+        name=strike_name, value="", x=x + 6, y=top - 15, width=COL_TASK_W - 12,
+        height=1.4, fillColor=INK, borderColor=INK, borderWidth=0, fieldFlags="readOnly",
+        annotationFlags="hidden", fontSize=1,
     )
     x += COL_TASK_W + COL_GAP
     c.acroForm.textfield(
@@ -158,7 +182,44 @@ def draw_row(c, y, prefix, task_value, timing_value):
         name=prefix + "_date", value="", x=x, y=top - 20, width=COL_DATE_W,
         height=18, maxlen=20, tooltip="Fill in once you know the start date", **FIELD_KW,
     )
+    actions[done_name] = strike_js(done_name, strike_name, task_name)
     return y - ROW_PITCH
+
+
+def attach_checkbox_actions(path, actions):
+    """Post-process pass: reportlab's AcroForm API has no hook for a widget's
+    /AA (additional-actions) dict, so we patch each checkbox's MouseUp action
+    in with pypdf after the fact. Adobe Acrobat/Reader runs this on click;
+    other viewers (Preview, Chrome, Firefox, most phone apps) just ignore it
+    and leave a plain, still-fully-functional checkbox."""
+    reader = PdfReader(path)
+    writer = PdfWriter()
+    writer.append(reader)
+
+    if "/AcroForm" in writer._root_object:
+        writer._root_object["/AcroForm"][NameObject("/NeedAppearances")] = BooleanObject(True)
+
+    patched = 0
+    for page in writer.pages:
+        annots = page.get("/Annots")
+        if not annots:
+            continue
+        for annot_ref in annots:
+            annot = annot_ref.get_object()
+            name = annot.get("/T")
+            if name is None or str(name) not in actions:
+                continue
+            js_action = DictionaryObject()
+            js_action[NameObject("/S")] = NameObject("/JavaScript")
+            js_action[NameObject("/JS")] = TextStringObject(actions[str(name)])
+            aa = DictionaryObject()
+            aa[NameObject("/U")] = js_action
+            annot[NameObject("/AA")] = aa
+            patched += 1
+
+    with open(path, "wb") as f:
+        writer.write(f)
+    assert patched == len(actions), "expected %d checkboxes patched, got %d" % (len(actions), patched)
 
 
 def ensure_room(c, y, needed, title, page_num):
@@ -173,6 +234,7 @@ def build_checklist_pdf(path, title, subtitle, phases, items, field_prefix,
                          extra_rows_per_phase, bonus_rows):
     c = canvas.Canvas(path, pagesize=letter)
     c.setTitle(title)
+    actions = {}  # checkbox field name -> JavaScript to run when it's clicked
 
     page_num = 1
     y = draw_doc_header(c, title, subtitle)
@@ -191,11 +253,11 @@ def build_checklist_pdf(path, title, subtitle, phases, items, field_prefix,
 
         for item_id, offset, text in phase_items:
             y, page_num = ensure_room(c, y, ROW_PITCH, title, page_num)
-            y = draw_row(c, y, field_prefix + "_" + item_id, text, day_label(offset))
+            y = draw_row(c, y, field_prefix + "_" + item_id, text, day_label(offset), actions)
 
         for i in range(extra_rows_per_phase):
             y, page_num = ensure_room(c, y, ROW_PITCH, title, page_num)
-            y = draw_row(c, y, field_prefix + "_" + phase["id"] + "_extra" + str(i + 1), "", "")
+            y = draw_row(c, y, field_prefix + "_" + phase["id"] + "_extra" + str(i + 1), "", "", actions)
 
         y -= 4
 
@@ -204,9 +266,10 @@ def build_checklist_pdf(path, title, subtitle, phases, items, field_prefix,
     y = draw_phase_band(c, y, "Additional Tasks", "add as many as you need")
     for i in range(bonus_rows):
         y, page_num = ensure_room(c, y, ROW_PITCH, title, page_num)
-        y = draw_row(c, y, field_prefix + "_bonus" + str(i + 1), "", "")
+        y = draw_row(c, y, field_prefix + "_bonus" + str(i + 1), "", "", actions)
 
     c.save()
+    attach_checkbox_actions(path, actions)
 
 
 def main():

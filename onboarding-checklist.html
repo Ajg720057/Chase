@@ -167,6 +167,14 @@
   .item-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-muted); }
   .item-due { font-family: "JetBrains Mono", monospace; }
   .item-by { color: var(--ink-muted); }
+  .item-remove { flex: none; border: none; background: transparent; color: var(--ink-muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 4px 7px; border-radius: 6px; }
+  .item-remove:hover { color: var(--critical); background: var(--surface-2); }
+
+  .add-task-btn { align-self: flex-start; background: transparent; border: 1px dashed var(--border); color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 10px; cursor: pointer; margin-top: 2px; }
+  .add-task-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .add-task-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 12px; margin-top: 2px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .add-task-form input[type="text"] { flex: 1; min-width: 160px; font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .add-task-form input[type="number"] { width: 112px; font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
 
   .status-pill { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
   .status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
@@ -481,6 +489,62 @@
         var hires = this.readLocal().filter(function (h) { return h.id !== hireId; });
         this.writeLocal(hires);
       }
+    },
+
+    addCustomTask: function (hireId, modeKey, phaseId, task) {
+      var customId = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      var patch = Object.assign({}, task, { createdAt: new Date().toISOString(), createdBy: this.userId || null });
+      this._patchCustomTask(hireId, modeKey, phaseId, customId, patch);
+      return customId;
+    },
+
+    removeCustomTask: function (hireId, modeKey, phaseId, customId) {
+      this._patchCustomTask(hireId, modeKey, phaseId, customId, { removed: true });
+    },
+
+    // Deep-clones just the customTasks[modeKey][phaseId] level so sibling
+    // phases/tasks are left untouched, then merges `patch` into one task.
+    _patchCustomTask: function (hireId, modeKey, phaseId, customId, patch) {
+      this.applyOptimistic(function (hires) {
+        return hires.map(function (h) {
+          if (h.id !== hireId) return h;
+          var customTasks = {};
+          var existingCt = h.customTasks || {};
+          Object.keys(existingCt).forEach(function (mk) {
+            customTasks[mk] = {};
+            Object.keys(existingCt[mk] || {}).forEach(function (pid) {
+              customTasks[mk][pid] = Object.assign({}, existingCt[mk][pid]);
+            });
+          });
+          customTasks[modeKey] = customTasks[modeKey] || {};
+          customTasks[modeKey][phaseId] = Object.assign({}, customTasks[modeKey][phaseId]);
+          customTasks[modeKey][phaseId][customId] = Object.assign({}, customTasks[modeKey][phaseId][customId], patch);
+          return Object.assign({}, h, { customTasks: customTasks });
+        });
+      });
+
+      if (this.mode === "db" && this.db) {
+        var dbPatch = { customTasks: {} };
+        dbPatch.customTasks[modeKey] = {};
+        dbPatch.customTasks[modeKey][phaseId] = {};
+        dbPatch.customTasks[modeKey][phaseId][customId] = patch;
+        var self = this;
+        this.db.doc("hires/" + hireId).update(dbPatch).catch(function (err) {
+          self.syncError = "Couldn't sync that task change — it may not be saved for others.";
+          self.emit();
+          if (window.console) console.error("[First 90] custom task write failed:", err);
+        });
+      } else {
+        var hires = this.readLocal();
+        var hire = hires.filter(function (h) { return h.id === hireId; })[0];
+        if (hire) {
+          hire.customTasks = hire.customTasks || {};
+          hire.customTasks[modeKey] = hire.customTasks[modeKey] || {};
+          hire.customTasks[modeKey][phaseId] = hire.customTasks[modeKey][phaseId] || {};
+          hire.customTasks[modeKey][phaseId][customId] = Object.assign({}, hire.customTasks[modeKey][phaseId][customId], patch);
+          this.writeLocal(hires);
+        }
+      }
     }
   };
 
@@ -512,7 +576,8 @@
     profiles: {},
     role: roleInfo.role,       // "manager" | "newhire"
     hireId: roleInfo.hireId,   // set only for a scoped new-hire link
-    shareOpenFor: null
+    shareOpenFor: null,
+    addTaskOpenFor: null  // "<modeKey>|<phaseId>" of the add-task form currently open, if any
   };
 
   Store.onChange(function (hires) {
@@ -560,6 +625,35 @@
     return { done: done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0, overdue: overdue, next: next };
   }
 
+  // Custom tasks live at hire.customTasks[modeKey][phaseId][customId] so a
+  // single merge-write can add or update one without touching its siblings.
+  // "Removing" one sets removed:true rather than deleting the key (the db
+  // capability only supports merge writes, not field deletion).
+  function customItemsForPhase(hire, modeKey, phaseId) {
+    var phaseObj = ((hire.customTasks || {})[modeKey] || {})[phaseId] || {};
+    return Object.keys(phaseObj)
+      .map(function (id) { return Object.assign({ id: id, phase: phaseId, custom: true }, phaseObj[id]); })
+      .filter(function (t) { return !t.removed; });
+  }
+
+  function allCustomItemsForMode(hire, modeKey) {
+    var modeObj = (hire.customTasks || {})[modeKey] || {};
+    var out = [];
+    Object.keys(modeObj).forEach(function (phaseId) {
+      out = out.concat(customItemsForPhase(hire, modeKey, phaseId));
+    });
+    return out;
+  }
+
+  function fullItemsForMode(hire, mode) {
+    return mode.items.concat(allCustomItemsForMode(hire, mode.key));
+  }
+
+  function phaseDefaultOffset(modeKey, phaseId) {
+    var phase = MODES[modeKey].phases.filter(function (p) { return p.id === phaseId; })[0];
+    return phase ? phase.from : 0;
+  }
+
   function itemStatus(dueTs, today, done) {
     if (done) return "done";
     if (dueTs < today) return "overdue";
@@ -600,8 +694,8 @@
 
   function renderOverview() {
     var cards = state.hires.map(function (hire) {
-      var mgr = progressFor(hire, MANAGER_ITEMS);
-      var nh = progressFor(hire, NEWHIRE_ITEMS);
+      var mgr = progressFor(hire, fullItemsForMode(hire, MODES.manager));
+      var nh = progressFor(hire, fullItemsForMode(hire, MODES.newhire));
       var overdue = mgr.overdue + nh.overdue;
       var startTs = parseISO(hire.startDate);
       var dayNum = Math.floor((todayTs() - startTs) / 86400000) + 1;
@@ -710,7 +804,9 @@
     );
 
     var sections = mode.phases.map(function (phase) {
-      var items = mode.items.filter(function (it) { return it.phase === phase.id; });
+      var items = mode.items.filter(function (it) { return it.phase === phase.id; })
+        .concat(customItemsForPhase(hire, mode.key, phase.id));
+      items.sort(function (a, b) { return a.offsetDays - b.offsetDays; });
       var isCurrent = dayNum >= 1 && dayNum <= 90 && (dayNum - 1) >= phase.from && (dayNum - 1) <= phase.to;
       var doneCount = items.filter(function (it) { return hire.checklist && hire.checklist[it.id] && hire.checklist[it.id].done; }).length;
       var rows = items.map(function (item) {
@@ -730,6 +826,7 @@
                 (done && byName ? '<span class="item-by">checked by ' + escapeHtml(byName) + "</span>" : "") +
               "</div>" +
             "</div>" +
+            (item.custom ? '<button class="item-remove" data-action="remove-custom-task" data-mode="' + mode.key + '" data-phase="' + phase.id + '" data-custom="' + item.id + '" type="button" title="Remove this task">×</button>' : "") +
           "</div>"
         );
       }).join("");
@@ -741,11 +838,27 @@
             '<span class="phase-count mono">' + doneCount + "/" + items.length + "</span>" +
           "</div>" +
           rows +
+          renderAddTaskRow(mode.key, phase) +
         "</div>"
       );
     }).join("");
 
     return phaseNav + '<div style="display:flex;flex-direction:column;gap:20px;">' + sections + "</div>";
+  }
+
+  function renderAddTaskRow(modeKey, phase) {
+    var key = modeKey + "|" + phase.id;
+    if (state.addTaskOpenFor !== key) {
+      return '<button class="add-task-btn" data-action="show-add-task" data-mode="' + modeKey + '" data-phase="' + phase.id + '" type="button">+ Add task</button>';
+    }
+    return (
+      '<form class="add-task-form" data-mode="' + modeKey + '" data-phase="' + phase.id + '">' +
+        '<input type="text" name="title" placeholder="Task description" required maxlength="200" autofocus>' +
+        '<input type="number" name="day" placeholder="Day ' + (phase.from + 1) + (phase.to !== phase.from ? "–" + (phase.to + 1) : "") + '" title="Day number (Day 1 = start date). Leave blank to default to this phase.">' +
+        '<button class="btn btn-primary" type="submit">Add</button>' +
+        '<button class="btn btn-ghost" type="button" data-action="cancel-add-task">Cancel</button>' +
+      "</form>"
+    );
   }
 
   function renderDetail(hire) {
@@ -756,10 +869,10 @@
     var dayNum = Math.floor((today - startTs) / 86400000) + 1;
     var dayText = dayNum < 1 ? ("Starts in " + Math.abs(dayNum - 1) + "d") : dayNum > 90 ? "Complete" : ("Day " + dayNum);
 
-    var mgr = progressFor(hire, MANAGER_ITEMS);
-    var nh = progressFor(hire, NEWHIRE_ITEMS);
+    var mgr = progressFor(hire, fullItemsForMode(hire, MODES.manager));
+    var nh = progressFor(hire, fullItemsForMode(hire, MODES.newhire));
     var overdue = mgr.overdue + nh.overdue;
-    var current = progressFor(hire, mode.items);
+    var current = progressFor(hire, fullItemsForMode(hire, mode));
     var nextItem = current.next;
 
     var stats = (
@@ -774,7 +887,7 @@
     var tabs = (
       '<div class="tabs">' +
         Object.keys(MODES).map(function (key) {
-          var p = progressFor(hire, MODES[key].items);
+          var p = progressFor(hire, fullItemsForMode(hire, MODES[key]));
           return '<button class="tab' + (state.mode === key ? " active" : "") + '" data-tab="' + key + '" type="button">' +
             MODES[key].label + '<span class="tab-pct">' + p.pct + "%</span></button>";
         }).join("") +
@@ -823,7 +936,7 @@
     var today = todayTs();
     var dayNum = Math.floor((today - startTs) / 86400000) + 1;
     var dayText = dayNum < 1 ? ("Starts " + fmtDateShort(startTs)) : dayNum > 90 ? "Complete" : ("Day " + dayNum);
-    var p = progressFor(hire, mode.items);
+    var p = progressFor(hire, fullItemsForMode(hire, mode));
     var firstName = escapeHtml((hire.name || "").split(" ")[0] || hire.name);
 
     var stats = (
@@ -897,6 +1010,29 @@
       }
       return;
     }
+
+    var showAddTask = e.target.closest('[data-action="show-add-task"]');
+    if (showAddTask) {
+      state.addTaskOpenFor = showAddTask.getAttribute("data-mode") + "|" + showAddTask.getAttribute("data-phase");
+      render();
+      return;
+    }
+
+    var cancelAddTask = e.target.closest('[data-action="cancel-add-task"]');
+    if (cancelAddTask) { state.addTaskOpenFor = null; render(); return; }
+
+    var removeCustom = e.target.closest('[data-action="remove-custom-task"]');
+    if (removeCustom) {
+      if (window.confirm("Remove this task?")) {
+        Store.removeCustomTask(
+          activeHireId(),
+          removeCustom.getAttribute("data-mode"),
+          removeCustom.getAttribute("data-phase"),
+          removeCustom.getAttribute("data-custom")
+        );
+      }
+      return;
+    }
   });
 
   app.addEventListener("keydown", function (e) {
@@ -906,10 +1042,13 @@
     }
   });
 
+  function activeHireId() {
+    return state.role === "newhire" ? state.hireId : state.selectedId;
+  }
+
   app.addEventListener("change", function (e) {
     if (e.target.matches(".item-check")) {
-      var activeHireId = state.role === "newhire" ? state.hireId : state.selectedId;
-      Store.setItemDone(activeHireId, e.target.getAttribute("data-item"), e.target.checked);
+      Store.setItemDone(activeHireId(), e.target.getAttribute("data-item"), e.target.checked);
     }
   });
 
@@ -926,6 +1065,22 @@
       if (!payload.name || !payload.startDate) return;
       Store.addHire(payload);
       state.showAddForm = false;
+      render();
+      return;
+    }
+
+    if (e.target.matches(".add-task-form")) {
+      e.preventDefault();
+      var tfd = new FormData(e.target);
+      var title = (tfd.get("title") || "").toString().trim();
+      if (!title) return;
+      var modeKey = e.target.getAttribute("data-mode");
+      var phaseId = e.target.getAttribute("data-phase");
+      var dayRaw = (tfd.get("day") || "").toString().trim();
+      var dayNum = dayRaw === "" ? NaN : parseInt(dayRaw, 10);
+      var offsetDays = isNaN(dayNum) ? phaseDefaultOffset(modeKey, phaseId) : dayNum - 1;
+      Store.addCustomTask(activeHireId(), modeKey, phaseId, { title: title, offsetDays: offsetDays });
+      state.addTaskOpenFor = null;
       render();
     }
   });

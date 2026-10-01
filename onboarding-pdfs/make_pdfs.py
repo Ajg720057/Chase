@@ -140,11 +140,13 @@ def draw_phase_band(c, y, label, window):
 def strike_js(done_name, strike_name, task_name):
     # Runs when the checkbox is clicked (Acrobat/Reader only - see README note).
     # Re-derives state from the checkbox itself so it's correct either way,
-    # rather than just toggling, in case the script ever reruns.
+    # rather than just toggling, in case the script ever reruns. Each effect
+    # is in its own try/catch so one failing (e.g. a font resource issue)
+    # can't silently block the other.
     return (
         'var on = this.getField("%s").valueAsString != "Off";'
-        'var s = this.getField("%s"); if (s) s.display = on ? display.visible : display.hidden;'
-        'var t = this.getField("%s"); if (t) t.textFont = on ? font.HelvI : font.Helv;'
+        'try { var s = this.getField("%s"); if (s) s.display = on ? display.visible : display.hidden; } catch (e) {}'
+        'try { var t = this.getField("%s"); if (t) t.textFont = on ? font.HelvI : font.Helv; } catch (e) {}'
     ) % (done_name, strike_name, task_name)
 
 
@@ -167,9 +169,12 @@ def draw_row(c, y, prefix, task_value, timing_value, actions):
     )
     # Thin bar overlaid on the task field, hidden until the checkbox is
     # ticked - a strikethrough that works without rich-text form fields.
+    # Positioned to cross the first text line, not the middle of the whole
+    # (taller, wrap-friendly) field - Acrobat top-anchors field text, so the
+    # glyphs sit near the field's top edge, not its vertical center.
     c.acroForm.textfield(
-        name=strike_name, value="", x=x + 6, y=top - 15, width=COL_TASK_W - 12,
-        height=1.4, fillColor=INK, borderColor=INK, borderWidth=0, fieldFlags="readOnly",
+        name=strike_name, value="", x=x + 6, y=top - 9.5, width=COL_TASK_W - 12,
+        height=1.3, fillColor=INK, borderColor=INK, borderWidth=0, fieldFlags="readOnly",
         annotationFlags="hidden", fontSize=1,
     )
     x += COL_TASK_W + COL_GAP

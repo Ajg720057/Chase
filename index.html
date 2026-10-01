@@ -167,8 +167,10 @@
   .item-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-muted); }
   .item-due { font-family: "JetBrains Mono", monospace; }
   .item-by { color: var(--ink-muted); }
-  .item-remove { flex: none; border: none; background: transparent; color: var(--ink-muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 4px 7px; border-radius: 6px; }
-  .item-remove:hover { color: var(--critical); background: var(--surface-2); }
+  .item-actions { display: flex; gap: 2px; flex: none; align-self: flex-start; }
+  .item-icon-btn { border: none; background: transparent; color: var(--ink-muted); font-size: 14px; line-height: 1; cursor: pointer; padding: 5px 7px; border-radius: 6px; }
+  .item-icon-btn:hover { background: var(--surface-2); color: var(--accent); }
+  .item-icon-btn.item-icon-danger:hover { color: var(--critical); }
 
   .add-task-btn { align-self: flex-start; background: transparent; border: 1px dashed var(--border); color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 10px; cursor: pointer; margin-top: 2px; }
   .add-task-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
@@ -222,7 +224,7 @@
     .card { box-shadow: none; border: 1px solid var(--border); }
     .item-row:hover, .hire-card:hover { background: none; }
     .sync-pill, .tagline, .tabs, .phase-nav,
-    .add-task-btn, .add-task-form, .item-remove,
+    .add-task-btn, .add-task-form, .item-actions,
     .btn, #add-hire-form { display: none !important; }
     .phase-section, .item-row { break-inside: avoid; }
     .card.pad { padding: 10px 0; }
@@ -580,6 +582,39 @@
           this.writeLocal(hires);
         }
       }
+    },
+
+    // Edits or removes a BUILT-IN task for this hire only, by merging a
+    // patch (title/offsetDays/removed) on top of its static definition -
+    // the shared template every other hire uses stays untouched.
+    setTaskOverride: function (hireId, itemId, patch) {
+      this.applyOptimistic(function (hires) {
+        return hires.map(function (h) {
+          if (h.id !== hireId) return h;
+          var overrides = Object.assign({}, h.overrides);
+          overrides[itemId] = Object.assign({}, overrides[itemId], patch);
+          return Object.assign({}, h, { overrides: overrides });
+        });
+      });
+
+      if (this.mode === "db" && this.db) {
+        var dbPatch = { overrides: {} };
+        dbPatch.overrides[itemId] = patch;
+        var self = this;
+        this.db.doc("hires/" + hireId).update(dbPatch).catch(function (err) {
+          self.syncError = "Couldn't sync that task change — it may not be saved for others.";
+          self.emit();
+          if (window.console) console.error("[First 90] setTaskOverride failed:", err);
+        });
+      } else {
+        var hires2 = this.readLocal();
+        var hire2 = hires2.filter(function (h) { return h.id === hireId; })[0];
+        if (hire2) {
+          hire2.overrides = hire2.overrides || {};
+          hire2.overrides[itemId] = Object.assign({}, hire2.overrides[itemId], patch);
+          this.writeLocal(hires2);
+        }
+      }
     }
   };
 
@@ -612,7 +647,8 @@
     role: roleInfo.role,       // "manager" | "newhire"
     hireId: roleInfo.hireId,   // set only for a scoped new-hire link
     shareOpenFor: null,
-    addTaskOpenFor: null  // "<modeKey>|<phaseId>" of the add-task form currently open, if any
+    addTaskOpenFor: null,  // "<modeKey>|<phaseId>" of the add-task form currently open, if any
+    editTaskOpenFor: null  // item id currently showing its inline edit form, if any
   };
 
   Store.onChange(function (hires) {
@@ -680,8 +716,20 @@
     return out;
   }
 
+  // Built-in tasks can be edited or removed per hire via hire.overrides[id] -
+  // a patch merged onto the static definition (title/offsetDays/removed),
+  // without touching the shared template every other hire still uses.
+  function resolveItem(hire, item) {
+    var ov = (hire.overrides || {})[item.id];
+    return ov ? Object.assign({}, item, ov) : item;
+  }
+
+  function resolvedPredefinedItems(hire, mode) {
+    return mode.items.map(function (it) { return resolveItem(hire, it); }).filter(function (it) { return !it.removed; });
+  }
+
   function fullItemsForMode(hire, mode) {
-    return mode.items.concat(allCustomItemsForMode(hire, mode.key));
+    return resolvedPredefinedItems(hire, mode).concat(allCustomItemsForMode(hire, mode.key));
   }
 
   function phaseDefaultOffset(modeKey, phaseId) {
@@ -839,12 +887,13 @@
     );
 
     var sections = mode.phases.map(function (phase) {
-      var items = mode.items.filter(function (it) { return it.phase === phase.id; })
+      var items = resolvedPredefinedItems(hire, mode).filter(function (it) { return it.phase === phase.id; })
         .concat(customItemsForPhase(hire, mode.key, phase.id));
       items.sort(function (a, b) { return a.offsetDays - b.offsetDays; });
       var isCurrent = dayNum >= 1 && dayNum <= 90 && (dayNum - 1) >= phase.from && (dayNum - 1) <= phase.to;
       var doneCount = items.filter(function (it) { return hire.checklist && hire.checklist[it.id] && hire.checklist[it.id].done; }).length;
       var rows = items.map(function (item) {
+        if (state.editTaskOpenFor === item.id) return renderEditTaskRow(item, mode.key, phase.id);
         var entry = (hire.checklist || {})[item.id];
         var done = !!(entry && entry.done);
         var dueTs = addDaysTs(startTs, item.offsetDays);
@@ -861,7 +910,10 @@
                 (done && byName ? '<span class="item-by">checked by ' + escapeHtml(byName) + "</span>" : "") +
               "</div>" +
             "</div>" +
-            (item.custom ? '<button class="item-remove" data-action="remove-custom-task" data-mode="' + mode.key + '" data-phase="' + phase.id + '" data-custom="' + item.id + '" type="button" title="Remove this task">×</button>' : "") +
+            '<div class="item-actions">' +
+              '<button class="item-icon-btn" data-action="edit-task" data-item="' + item.id + '" type="button" title="Edit this task">✎</button>' +
+              '<button class="item-icon-btn item-icon-danger" data-action="remove-task" data-mode="' + mode.key + '" data-phase="' + phase.id + '" data-item="' + item.id + '" data-custom="' + (item.custom ? "1" : "0") + '" type="button" title="Remove this task">×</button>' +
+            "</div>" +
           "</div>"
         );
       }).join("");
@@ -892,6 +944,17 @@
         '<input type="number" name="day" placeholder="Day ' + (phase.from + 1) + (phase.to !== phase.from ? "–" + (phase.to + 1) : "") + '" title="Day number (Day 1 = start date). Leave blank to default to this phase.">' +
         '<button class="btn btn-primary" type="submit">Add</button>' +
         '<button class="btn btn-ghost" type="button" data-action="cancel-add-task">Cancel</button>' +
+      "</form>"
+    );
+  }
+
+  function renderEditTaskRow(item, modeKey, phaseId) {
+    return (
+      '<form class="add-task-form edit-task-form" data-item="' + item.id + '" data-mode="' + modeKey + '" data-phase="' + phaseId + '" data-custom="' + (item.custom ? "1" : "0") + '">' +
+        '<input type="text" name="title" value="' + escapeHtml(item.title) + '" required maxlength="300" autofocus>' +
+        '<input type="number" name="day" value="' + (item.offsetDays + 1) + '" title="Day number (Day 1 = start date)">' +
+        '<button class="btn btn-primary" type="submit">Save</button>' +
+        '<button class="btn btn-ghost" type="button" data-action="cancel-edit-task">Cancel</button>' +
       "</form>"
     );
   }
@@ -1075,15 +1138,21 @@
     var cancelAddTask = e.target.closest('[data-action="cancel-add-task"]');
     if (cancelAddTask) { state.addTaskOpenFor = null; render(); return; }
 
-    var removeCustom = e.target.closest('[data-action="remove-custom-task"]');
-    if (removeCustom) {
+    var editTask = e.target.closest('[data-action="edit-task"]');
+    if (editTask) { state.editTaskOpenFor = editTask.getAttribute("data-item"); render(); return; }
+
+    var cancelEditTask = e.target.closest('[data-action="cancel-edit-task"]');
+    if (cancelEditTask) { state.editTaskOpenFor = null; render(); return; }
+
+    var removeTask = e.target.closest('[data-action="remove-task"]');
+    if (removeTask) {
       if (window.confirm("Remove this task?")) {
-        Store.removeCustomTask(
-          activeHireId(),
-          removeCustom.getAttribute("data-mode"),
-          removeCustom.getAttribute("data-phase"),
-          removeCustom.getAttribute("data-custom")
-        );
+        var removeItemId = removeTask.getAttribute("data-item");
+        if (removeTask.getAttribute("data-custom") === "1") {
+          Store.removeCustomTask(activeHireId(), removeTask.getAttribute("data-mode"), removeTask.getAttribute("data-phase"), removeItemId);
+        } else {
+          Store.setTaskOverride(activeHireId(), removeItemId, { removed: true });
+        }
       }
       return;
     }
@@ -1119,6 +1188,28 @@
       if (!payload.name || !payload.startDate) return;
       Store.addHire(payload);
       state.showAddForm = false;
+      render();
+      return;
+    }
+
+    // Checked before .add-task-form below, since the edit form carries both
+    // classes (it reuses the same layout/styling).
+    if (e.target.matches(".edit-task-form")) {
+      e.preventDefault();
+      var efd = new FormData(e.target);
+      var editTitle = (efd.get("title") || "").toString().trim();
+      if (!editTitle) return;
+      var editItemId = e.target.getAttribute("data-item");
+      var editDayRaw = (efd.get("day") || "").toString().trim();
+      var editDayNum = editDayRaw === "" ? NaN : parseInt(editDayRaw, 10);
+      var editPatch = { title: editTitle };
+      if (!isNaN(editDayNum)) editPatch.offsetDays = editDayNum - 1;
+      if (e.target.getAttribute("data-custom") === "1") {
+        Store._patchCustomTask(activeHireId(), e.target.getAttribute("data-mode"), e.target.getAttribute("data-phase"), editItemId, editPatch);
+      } else {
+        Store.setTaskOverride(activeHireId(), editItemId, editPatch);
+      }
+      state.editTaskOpenFor = null;
       render();
       return;
     }

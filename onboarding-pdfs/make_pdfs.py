@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import DictionaryObject, NameObject, TextStringObject, BooleanObject
+from pypdf.generic import DictionaryObject, NameObject, TextStringObject, BooleanObject, ArrayObject
 
 from pdf_data import (
     MANAGER_PHASES, MANAGER_ITEMS,
@@ -88,7 +88,10 @@ def draw_identity_block(c, y, field_prefix):
     row2_y = row1_y - 44
     draw_field_block(c, MARGIN_L, row2_y, col_w, "Manager", field_prefix + "_manager")
     draw_field_block(c, MARGIN_L + col_w + gap, row2_y, col_w, "Start date (MM/DD/YYYY)", field_prefix + "_startdate")
-    bottom = row2_y - 23 - 14
+    c.setFillColor(ACCENT)
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(MARGIN_L + col_w + gap, row2_y - 23 - 11, "Fill this in — every Due Date below updates automatically.")
+    bottom = row2_y - 23 - 11 - 14
     c.setStrokeColor(BORDER)
     c.setLineWidth(0.6)
     c.line(MARGIN_L, bottom, PAGE_W - MARGIN_R, bottom)
@@ -105,7 +108,7 @@ def draw_column_labels(c, y):
     x += COL_TASK_W + COL_GAP
     c.drawString(x, y, "TIMING")
     x += COL_TIMING_W + COL_GAP
-    c.drawString(x, y, "YOUR DATE")
+    c.drawString(x, y, "DUE DATE")
     return y - 12
 
 
@@ -150,6 +153,41 @@ def strike_js(done_name, strike_name, task_name):
     ) % (done_name, strike_name, task_name)
 
 
+# One identical Calculate script, shared by every "due date" field in the
+# document (Acrobat/Reader only - see README note). It reads its OWN name to
+# find its sibling Timing field and the document's Start Date field, so it
+# needs no per-row constants and keeps working even on a row duplicated by
+# hand in Acrobat Pro: parse a day number out of the Timing field's text
+# ("Day 30", "14d before Day 1", or a bare number), add it to the Start Date,
+# and write the result - re-running automatically whenever ANY field on the
+# form changes, via the document's calculation order.
+DATE_CALC_JS = (
+    'var tf = this.getField(event.target.name.replace(/_date$/, "_timing"));'
+    'var sdf = this.getField(event.target.name.split("_")[0] + "_startdate");'
+    'var txt = (tf ? tf.valueAsString : "") || "";'
+    'var sd = (sdf ? sdf.valueAsString : "") || "";'
+    'var offset = null;'
+    'var mBefore = txt.match(/(\\d+)\\s*d.*before/i);'
+    'var mDay = txt.match(/Day\\s*(-?\\d+)/i);'
+    'if (mBefore) { offset = -parseInt(mBefore[1], 10); }'
+    'else if (mDay) { offset = parseInt(mDay[1], 10) - 1; }'
+    'else if (/^-?\\d+$/.test(txt.replace(/\\s/g, ""))) { offset = parseInt(txt, 10) - 1; }'
+    'event.value = "";'
+    'if (offset !== null && sd) {'
+    '  var parts = sd.split(/[\\/\\-]/);'
+    '  if (parts.length === 3) {'
+    '    var mm = parseInt(parts[0], 10) - 1, dd = parseInt(parts[1], 10), yy = parseInt(parts[2], 10);'
+    '    if (yy < 100) yy += 2000;'
+    '    var base = new Date(yy, mm, dd);'
+    '    if (!isNaN(base.getTime()) && base.getMonth() === mm) {'
+    '      base.setDate(base.getDate() + offset);'
+    '      event.value = util.printd("mm/dd/yyyy", base);'
+    '    }'
+    '  }'
+    '}'
+)
+
+
 def draw_row(c, y, prefix, task_value, timing_value, actions):
     x = MARGIN_L
     top = y
@@ -180,31 +218,49 @@ def draw_row(c, y, prefix, task_value, timing_value, actions):
     x += COL_TASK_W + COL_GAP
     c.acroForm.textfield(
         name=prefix + "_timing", value=timing_value, x=x, y=top - 20, width=COL_TIMING_W,
-        height=18, maxlen=60, **FIELD_KW,
+        height=18, maxlen=60, tooltip='Day number, e.g. "Day 30" — the due date fills in automatically',
+        **FIELD_KW,
     )
     x += COL_TIMING_W + COL_GAP
     c.acroForm.textfield(
         name=prefix + "_date", value="", x=x, y=top - 20, width=COL_DATE_W,
-        height=18, maxlen=20, tooltip="Fill in once you know the start date", **FIELD_KW,
+        height=18, maxlen=20, tooltip="Auto-fills from the start date above and this row's Timing",
+        **FIELD_KW,
     )
     actions[done_name] = strike_js(done_name, strike_name, task_name)
     return y - ROW_PITCH
 
 
-def attach_checkbox_actions(path, actions):
+def attach_dynamic_behavior(path, checkbox_actions):
     """Post-process pass: reportlab's AcroForm API has no hook for a widget's
-    /AA (additional-actions) dict, so we patch each checkbox's MouseUp action
-    in with pypdf after the fact. Adobe Acrobat/Reader runs this on click;
-    other viewers (Preview, Chrome, Firefox, most phone apps) just ignore it
-    and leave a plain, still-fully-functional checkbox."""
+    /AA (additional-actions) dict or the form's /CO (calculation order), so
+    both are patched in with pypdf after the fact. Adobe Acrobat/Reader runs
+    all of this; other viewers (Preview, Chrome, Firefox, most phone apps)
+    just ignore it and leave plain, still-fully-functional fields.
+
+    Wires two things per document:
+    - each checkbox's MouseUp action (checkbox_actions, by field name) -
+      the strikethrough/italic toggle.
+    - every "..._date" field's Calculate action (the same DATE_CALC_JS for
+      all of them) plus /AcroForm/CO, so Acrobat recalculates every due date
+      whenever the Start Date (or a Timing field) changes.
+    """
     reader = PdfReader(path)
     writer = PdfWriter()
     writer.append(reader)
 
-    if "/AcroForm" in writer._root_object:
-        writer._root_object["/AcroForm"][NameObject("/NeedAppearances")] = BooleanObject(True)
+    acro_form = writer._root_object["/AcroForm"] if "/AcroForm" in writer._root_object else None
+    if acro_form is not None:
+        acro_form[NameObject("/NeedAppearances")] = BooleanObject(True)
 
-    patched = 0
+    def js_action(script):
+        d = DictionaryObject()
+        d[NameObject("/S")] = NameObject("/JavaScript")
+        d[NameObject("/JS")] = TextStringObject(script)
+        return d
+
+    patched_checkboxes = 0
+    date_field_refs = []
     for page in writer.pages:
         annots = page.get("/Annots")
         if not annots:
@@ -212,19 +268,29 @@ def attach_checkbox_actions(path, actions):
         for annot_ref in annots:
             annot = annot_ref.get_object()
             name = annot.get("/T")
-            if name is None or str(name) not in actions:
+            if name is None:
                 continue
-            js_action = DictionaryObject()
-            js_action[NameObject("/S")] = NameObject("/JavaScript")
-            js_action[NameObject("/JS")] = TextStringObject(actions[str(name)])
-            aa = DictionaryObject()
-            aa[NameObject("/U")] = js_action
-            annot[NameObject("/AA")] = aa
-            patched += 1
+            name = str(name)
+
+            if name in checkbox_actions:
+                aa = DictionaryObject()
+                aa[NameObject("/U")] = js_action(checkbox_actions[name])
+                annot[NameObject("/AA")] = aa
+                patched_checkboxes += 1
+            elif name.endswith("_date"):
+                aa = DictionaryObject()
+                aa[NameObject("/C")] = js_action(DATE_CALC_JS)
+                annot[NameObject("/AA")] = aa
+                date_field_refs.append(annot_ref)
+
+    if acro_form is not None and date_field_refs:
+        acro_form[NameObject("/CO")] = ArrayObject(date_field_refs)
 
     with open(path, "wb") as f:
         writer.write(f)
-    assert patched == len(actions), "expected %d checkboxes patched, got %d" % (len(actions), patched)
+    assert patched_checkboxes == len(checkbox_actions), \
+        "expected %d checkboxes patched, got %d" % (len(checkbox_actions), patched_checkboxes)
+    assert date_field_refs, "expected at least one due-date field to wire up"
 
 
 def ensure_room(c, y, needed, title, page_num):
@@ -266,15 +332,17 @@ def build_checklist_pdf(path, title, subtitle, phases, items, field_prefix,
 
         y -= 4
 
-    # Bonus page: a block of blank "duplicate" rows for anything else.
-    y, page_num = ensure_room(c, y, PHASE_BAND_H + ROW_PITCH, title, page_num)
+    # Additional Tasks always starts on its own fresh page.
+    c.showPage()
+    page_num += 1
+    y = draw_continuation_header(c, title, page_num)
     y = draw_phase_band(c, y, "Additional Tasks", "add as many as you need")
     for i in range(bonus_rows):
         y, page_num = ensure_room(c, y, ROW_PITCH, title, page_num)
         y = draw_row(c, y, field_prefix + "_bonus" + str(i + 1), "", "", actions)
 
     c.save()
-    attach_checkbox_actions(path, actions)
+    attach_dynamic_behavior(path, actions)
 
 
 def main():
@@ -283,14 +351,14 @@ def main():
         "Manager Onboarding Checklist",
         "The First 90 — everything to prep before day one, and how to check in through day 90.",
         MANAGER_PHASES, MANAGER_ITEMS, "m",
-        extra_rows_per_phase=3, bonus_rows=20,
+        extra_rows_per_phase=8, bonus_rows=20,
     )
     build_checklist_pdf(
         "NewHire_Onboarding_Checklist.pdf",
         "New Hire Onboarding Checklist",
         "The First 90 — your plan from day one through day 90.",
         NEWHIRE_PHASES, NEWHIRE_ITEMS, "n",
-        extra_rows_per_phase=3, bonus_rows=20,
+        extra_rows_per_phase=8, bonus_rows=20,
     )
     print("done")
 

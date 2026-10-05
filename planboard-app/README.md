@@ -55,6 +55,14 @@ from before the PlanBoard link can't receive to-dos.
   PlanBoard also removes it from LifeBoard.
 - On a linked to-do, the link button can **Open in LifeBoard** or **Stop syncing**.
 
+**Home-screen widget**
+- Long-press your home screen, choose **Widgets**, find **PlanBoard today** and drag it onto
+  the screen. You can resize it.
+- It shows today's plans in time order, with their start–end times and to-do progress,
+  then this week's and this month's plans underneath. It switches to the new day at midnight.
+- Tap a plan's circle to move it along (Planned → In progress → Done), tap a plan to open it,
+  tap **Today** to open the Day tab, or tap **+** to add a plan for today.
+
 **PDF itinerary**
 - Open the ⋮ menu on any tab and choose **Export itinerary (PDF)…**. Or, on a plan, choose
   **Export as PDF…** from its ⋮ menu.

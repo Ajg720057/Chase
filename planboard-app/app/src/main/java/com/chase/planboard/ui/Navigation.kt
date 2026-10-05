@@ -12,6 +12,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.chase.planboard.OpenRequest
 import com.chase.planboard.PlanBoardApp
 import com.chase.planboard.data.Scope
 import com.chase.planboard.ui.day.DayScreen
@@ -75,7 +77,7 @@ class Navigator(
 }
 
 @Composable
-fun PlanBoardNavHost() {
+fun PlanBoardNavHost(openRequest: OpenRequest?, onOpenHandled: () -> Unit) {
     val nav = rememberNavController()
     val app = planBoardApp()
     val scope = rememberCoroutineScope()
@@ -84,6 +86,26 @@ fun PlanBoardNavHost() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBar = Tab.entries.any { it.route == currentRoute }
+
+    // Requests from the widget wait until the nav graph is ready.
+    val graphReady = backStack != null
+    LaunchedEffect(openRequest, graphReady) {
+        if (openRequest != null && graphReady) {
+            val today = LocalDate.now()
+            when (openRequest.kind) {
+                OpenRequest.Kind.TODAY -> navigator.show(Tab.DAY, today)
+                OpenRequest.Kind.PLAN -> {
+                    navigator.show(Tab.DAY, today)
+                    navigator.openPlan(openRequest.planId)
+                }
+                OpenRequest.Kind.NEW_DAY_PLAN -> {
+                    navigator.show(Tab.DAY, today)
+                    navigator.newPlan(Scope.DAY, today)
+                }
+            }
+            onOpenHandled()
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

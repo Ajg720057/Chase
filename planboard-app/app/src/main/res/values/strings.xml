@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">PlanBoard</string>
+    <string name="widget_name">PlanBoard today</string>
+    <string name="widget_description">Today\'s plans in time order, with this week\'s and month\'s goals</string>
 </resources>

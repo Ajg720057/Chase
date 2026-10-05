@@ -283,14 +283,14 @@ def main():
         "Manager Onboarding Checklist",
         "The First 90 — everything to prep before day one, and how to check in through day 90.",
         MANAGER_PHASES, MANAGER_ITEMS, "m",
-        extra_rows_per_phase=1, bonus_rows=10,
+        extra_rows_per_phase=3, bonus_rows=20,
     )
     build_checklist_pdf(
         "NewHire_Onboarding_Checklist.pdf",
         "New Hire Onboarding Checklist",
         "The First 90 — your plan from day one through day 90.",
         NEWHIRE_PHASES, NEWHIRE_ITEMS, "n",
-        extra_rows_per_phase=1, bonus_rows=10,
+        extra_rows_per_phase=3, bonus_rows=20,
     )
     print("done")
 

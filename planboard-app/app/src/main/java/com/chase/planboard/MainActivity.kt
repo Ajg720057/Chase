@@ -47,7 +47,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        val kind = intent?.getStringExtra(EXTRA_OPEN)?.let { runCatching { OpenRequest.Kind.valueOf(it) }.getOrNull() } ?: return
+        intent ?: return
+        val kind = intent.getStringExtra(EXTRA_OPEN)?.let { runCatching { OpenRequest.Kind.valueOf(it) }.getOrNull() } ?: return
         openRequest.value = OpenRequest(kind, intent.getLongExtra(EXTRA_PLAN_ID, 0))
         intent.removeExtra(EXTRA_OPEN)
     }

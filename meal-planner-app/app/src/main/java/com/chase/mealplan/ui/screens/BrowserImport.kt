@@ -135,7 +135,7 @@ fun BrowserImportDialog(url: String, onFound: (ImportedRecipe) -> Unit, onDismis
 }
 
 private suspend fun extract(webView: WebView): ImportedRecipe? {
-    val raw = suspendCancellableCoroutine { cont ->
+    val raw = suspendCancellableCoroutine<String?> { cont ->
         webView.evaluateJavascript(COLLECT_JSON_LD) { cont.resume(it) }
     } ?: return null
     return runCatching {

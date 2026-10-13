@@ -167,6 +167,8 @@ class MealEditViewModel(
         dirty = true
     }
 
+    fun touch() { dirty = true }
+
     /** Name of the meal picked from suggestions; renaming it makes a new meal instead. */
     private var pickedName: String? = null
 

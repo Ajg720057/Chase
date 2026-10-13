@@ -372,6 +372,9 @@ fun MealEditScreen(vm: MealEditViewModel, navigator: Navigator) {
             onDismiss = { confirmDiscard = false },
         )
     }
+    vm.browserUrl?.let { url ->
+        BrowserImportDialog(url = url, onFound = vm::importFromBrowser, onDismiss = vm::browserCancelled)
+    }
     if (importOpen) {
         ImportDialog(vm = vm, onDismiss = { importOpen = false })
     }

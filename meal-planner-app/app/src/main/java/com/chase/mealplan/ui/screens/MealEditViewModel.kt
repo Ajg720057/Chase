@@ -13,6 +13,7 @@ import com.chase.mealplan.data.MealEntity
 import com.chase.mealplan.data.Slot
 import com.chase.mealplan.grocery.IngredientLine
 import com.chase.mealplan.grocery.Ingredients
+import com.chase.mealplan.importer.ImportedRecipe
 import com.chase.mealplan.importer.RecipeImporter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -68,6 +69,8 @@ class MealEditViewModel(
     var importing by mutableStateOf(false)
         private set
     var importError by mutableStateOf<String?>(null)
+    /** Set when the page needs the in-app browser to import. */
+    var browserUrl by mutableStateOf<String?>(null)
 
     var dirty by mutableStateOf(false)
         private set
@@ -85,12 +88,12 @@ class MealEditViewModel(
         } else {
             ingredients += IngredientRow(nextRowId++)
         }
-        importUrl?.let(::importFrom)
+        importUrl?.let { importFrom(it) }
     }
 
     /**
-     * Fills the form from a recipe web page. Keeps a name you've typed, adds the page's
-     * ingredients in place of empty rows, and only fills nutrition and the photo if they're blank.
+     * Imports a recipe web page. Tries a quick download first; if the site refuses that
+     * (most big recipe sites do), opens the page in the in-app browser instead.
      */
     fun importFrom(url: String, onDone: () -> Unit = {}) {
         if (importing) return
@@ -98,42 +101,71 @@ class MealEditViewModel(
         importError = null
         viewModelScope.launch {
             try {
-                val r = RecipeImporter.fetch(url)
-                if (name.isBlank()) r.name?.let { name = it }
-                r.servings?.let { servings = it.toString() }
-                if (r.ingredients.isNotEmpty()) {
-                    ingredients.removeAll { it.name.isBlank() && it.amount.isBlank() }
-                    r.ingredients.forEach { ingredients += IngredientRow(nextRowId++, it.amount, it.name) }
-                }
-                if (r.instructions.isNotBlank()) {
-                    recipe = if (recipe.isBlank()) r.instructions else recipe.trimEnd() + "\n\n" + r.instructions
-                }
-                if (calories.isBlank() && r.calories != null) {
-                    calories = r.calories.asText()
-                    protein = r.protein.asText()
-                    carbs = r.carbs.asText()
-                    fat = r.fat.asText()
-                }
-                if (photo == null && r.imageUrl != null) {
-                    val tmp = java.io.File(app.cacheDir, "import/${System.currentTimeMillis()}.img")
-                    if (RecipeImporter.downloadImage(r.imageUrl, tmp)) {
-                        app.photos.import(android.net.Uri.fromFile(tmp))?.let { photo = it }
-                    }
-                    tmp.delete()
-                }
-                dirty = true
+                applyImport(RecipeImporter.fetch(url))
                 onDone()
             } catch (e: RecipeImporter.ImportException) {
-                importError = e.message
+                if (e.tryBrowser) {
+                    browserUrl = RecipeImporter.normalize(url)
+                    onDone()
+                } else {
+                    importError = e.message
+                }
             } catch (e: Exception) {
-                importError = "Something went wrong reading that page."
+                browserUrl = RecipeImporter.normalize(url)
+                onDone()
             } finally {
                 importing = false
             }
         }
     }
 
-    fun touch() { dirty = true }
+    /** The in-app browser found the recipe. */
+    fun importFromBrowser(r: ImportedRecipe) {
+        browserUrl = null
+        importing = true
+        viewModelScope.launch {
+            try {
+                applyImport(r)
+            } finally {
+                importing = false
+            }
+        }
+    }
+
+    fun browserCancelled() {
+        browserUrl = null
+        importError = "No recipe was imported. You can still type it in, or use Paste a list for the ingredients."
+    }
+
+    /**
+     * Fills the form from an imported recipe. Keeps a name you've typed, adds the page's
+     * ingredients in place of empty rows, and only fills nutrition and the photo if they're blank.
+     */
+    private suspend fun applyImport(r: ImportedRecipe) {
+        if (name.isBlank()) r.name?.let { name = it }
+        r.servings?.let { servings = it.toString() }
+        if (r.ingredients.isNotEmpty()) {
+            ingredients.removeAll { it.name.isBlank() && it.amount.isBlank() }
+            r.ingredients.forEach { ingredients += IngredientRow(nextRowId++, it.amount, it.name) }
+        }
+        if (r.instructions.isNotBlank()) {
+            recipe = if (recipe.isBlank()) r.instructions else recipe.trimEnd() + "\n\n" + r.instructions
+        }
+        if (calories.isBlank() && r.calories != null) {
+            calories = r.calories.asText()
+            protein = r.protein.asText()
+            carbs = r.carbs.asText()
+            fat = r.fat.asText()
+        }
+        if (photo == null && r.imageUrl != null) {
+            val tmp = java.io.File(app.cacheDir, "import/${System.currentTimeMillis()}.img")
+            if (RecipeImporter.downloadImage(r.imageUrl, tmp)) {
+                app.photos.import(android.net.Uri.fromFile(tmp))?.let { photo = it }
+            }
+            tmp.delete()
+        }
+        dirty = true
+    }
 
     /** Name of the meal picked from suggestions; renaming it makes a new meal instead. */
     private var pickedName: String? = null

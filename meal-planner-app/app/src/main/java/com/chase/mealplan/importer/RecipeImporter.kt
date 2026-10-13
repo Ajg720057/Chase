@@ -14,26 +14,39 @@ object RecipeImporter {
         "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
     private const val MAX_PAGE_BYTES = 5 * 1024 * 1024
 
-    class ImportException(message: String) : Exception(message)
+    /**
+     * [tryBrowser] is true when opening the page in the in-app browser may still work
+     * (the site blocked a plain download, or builds its page with JavaScript).
+     */
+    class ImportException(message: String, val tryBrowser: Boolean = false) : Exception(message)
 
     /** Finds the first web address in shared text such as "Try this! https://…". */
     fun findUrl(text: String): String? =
         Regex("https?://[^\\s<>\"']+").find(text)?.value?.trimEnd('.', ',', ')', ']')
 
+    /** The address to load: the first link in [text], or "https://" added to a bare "site.com/…". */
+    fun normalize(text: String): String? {
+        val t = text.trim()
+        findUrl(t)?.let { return it }
+        if (t.contains('.') && !t.contains(' ')) return "https://$t"
+        return null
+    }
+
     suspend fun fetch(url: String): ImportedRecipe = withContext(Dispatchers.IO) {
-        val address = findUrl(url.trim()) ?: if (url.contains('.')) "https://${url.trim()}" else
-            throw ImportException("That doesn't look like a web address.")
+        val address = normalize(url) ?: throw ImportException("That doesn't look like a web address.")
         val html = try {
             download(address, MAX_PAGE_BYTES).toString(Charsets.UTF_8)
+        } catch (e: java.net.UnknownHostException) {
+            throw ImportException("Couldn't reach that site. Check your internet connection.")
         } catch (e: IOException) {
-            throw ImportException("Couldn't open that page. Check the address and your internet connection.")
+            // Usually bot protection refusing a plain download; a real browser view gets through.
+            throw ImportException("The site didn't allow a quick download.", tryBrowser = true)
         }
-        RecipeParser.parse(html, address)
-            ?: throw ImportException(
-                "Couldn't find a recipe on that page. Some sites don't share their recipe details; " +
-                    "you can still type or paste it in.",
-            )
+        parseHtml(html, address)
+            ?: throw ImportException("No recipe data in the quick download.", tryBrowser = true)
     }
+
+    fun parseHtml(html: String, address: String): ImportedRecipe? = RecipeParser.parse(html, address)
 
     suspend fun downloadImage(url: String, into: File): Boolean = withContext(Dispatchers.IO) {
         runCatching {

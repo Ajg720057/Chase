@@ -2,9 +2,21 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/scrim"
+    android:background="#000000"
     android:clickable="true"
     android:focusable="true">
+
+    <ImageView
+        android:id="@+id/scene"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scene_scrim" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,9 +31,9 @@
             android:id="@+id/header"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAllCaps="true"
             android:letterSpacing="0.08"
-            android:textColor="@color/brand"
+            android:textAllCaps="true"
+            android:textColor="@color/card_accent"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -32,7 +44,7 @@
             android:layout_marginTop="16dp"
             android:fontFamily="serif"
             android:lineSpacingMultiplier="1.15"
-            android:textColor="@color/ink"
+            android:textColor="@android:color/white"
             android:textSize="24sp" />
 
         <TextView
@@ -40,22 +52,31 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:textColor="@color/muted"
+            android:textColor="@color/card_muted"
             android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textColor="@color/card_muted"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/done"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/put_it_down" />
+            android:layout_marginTop="24dp"
+            android:backgroundTint="@android:color/white"
+            android:text="@string/put_it_down"
+            android:textColor="@color/ink" />
 
         <Button
             android:id="@+id/snooze"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/five_more"
-            android:textColor="@color/muted" />
+            android:textColor="@color/card_muted" />
     </LinearLayout>
 </FrameLayout>

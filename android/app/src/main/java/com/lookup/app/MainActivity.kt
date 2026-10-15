@@ -74,7 +74,13 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.preview).setOnClickListener {
             if (Settings.canDrawOverlays(this)) {
-                QuoteOverlay(this).show(Quotes.random(), prefs.thresholdMinutes, "Instagram") {}
+                QuoteOverlay(this).show(
+                    Quotes.random(),
+                    getString(R.string.nudge_header, prefs.thresholdMinutes, "Instagram"),
+                    hint = null,
+                    snoozesLeft = 3,
+                    onSnooze = {},
+                )
             } else {
                 Toast.makeText(this, R.string.need_overlay_first, Toast.LENGTH_LONG).show()
             }
@@ -99,8 +105,11 @@ class MainActivity : AppCompatActivity() {
 
         val mins = prefs.todayMs / 60_000
         findViewById<TextView>(R.id.today).text = getString(R.string.today_fmt, mins / 60, mins % 60)
-        findViewById<TextView>(R.id.today_nudges).text =
-            resources.getQuantityString(R.plurals.nudges_fmt, prefs.todayNudges, prefs.todayNudges)
+        val nudges = resources.getQuantityString(R.plurals.nudges_fmt, prefs.todayNudges, prefs.todayNudges)
+        val breakLeft = prefs.cooldownUntil - System.currentTimeMillis()
+        findViewById<TextView>(R.id.today_nudges).text = if (breakLeft > 0) {
+            nudges + "\n" + getString(R.string.today_break, ((breakLeft + 59_999) / 60_000).toInt())
+        } else nudges
         findViewById<TextView>(R.id.tracked_count).text =
             getString(R.string.tracked_fmt, prefs.trackedPackages.count { isInstalled(it) })
     }

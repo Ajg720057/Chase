@@ -21,6 +21,14 @@ class Prefs(context: Context) {
         get() = sp.getStringSet(KEY_TRACKED, null) ?: SocialApps.DEFAULT_PACKAGES
         set(v) = sp.edit().putStringSet(KEY_TRACKED, v.toSet()).apply()
 
+    /**
+     * End of the current enforced break (epoch ms). Saved so a restart can't skip it.
+     * Opening a tracked app before then brings the quote straight back.
+     */
+    var cooldownUntil: Long
+        get() = sp.getLong(KEY_COOLDOWN_UNTIL, 0)
+        set(v) = sp.edit().putLong(KEY_COOLDOWN_UNTIL, v).apply()
+
     /** Milliseconds spent in tracked apps today. Resets at midnight. */
     val todayMs: Long
         get() = if (sp.getString(KEY_DAY, null) == today()) sp.getLong(KEY_TODAY_MS, 0) else 0
@@ -54,5 +62,6 @@ class Prefs(context: Context) {
         const val KEY_DAY = "day"
         const val KEY_TODAY_MS = "today_ms"
         const val KEY_TODAY_NUDGES = "today_nudges"
+        const val KEY_COOLDOWN_UNTIL = "cooldown_until"
     }
 }

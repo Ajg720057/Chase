@@ -39,5 +39,12 @@
 
     <string name="nudge_header">%1$d minutes on %2$s</string>
     <string name="put_it_down">I\'m putting it down</string>
-    <string name="five_more">5 more minutes</string>
+    <plurals name="five_more_left">
+        <item quantity="one">5 more minutes (last one)</item>
+        <item quantity="other">5 more minutes (%d left)</item>
+    </plurals>
+    <string name="out_of_snoozes">That was your last 5 minutes. Time to look up.</string>
+    <string name="cooldown_header">You\'re on a break</string>
+    <string name="cooldown_hint">You left %1$d min ago. Give it %2$d more minutes.</string>
+    <string name="today_break">On a break for %d more minutes.</string>
 </resources>

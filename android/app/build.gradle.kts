@@ -11,8 +11,19 @@ android {
         applicationId = "com.lookup.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // A fixed debug key, so each CI build installs as an update over the last one.
+    // (CI otherwise makes a new random key every run.) Not a secret: debug builds only.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

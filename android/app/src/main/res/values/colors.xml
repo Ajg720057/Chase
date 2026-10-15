@@ -1,8 +1,10 @@
 <resources>
     <color name="brand">#2E6B5E</color>
     <color name="brand_dark">#1F4A41</color>
-    <color name="scrim">#E6101814</color>
-    <color name="card">#FFFAF6EE</color>
+    <!-- Quote overlay: dark glass card over a lightly dimmed scene. -->
+    <color name="scene_scrim">#33000000</color>
+    <color name="card_glass">#B3101418</color>
+    <color name="card_accent">#FFD8A8</color>
+    <color name="card_muted">#CCFFFFFF</color>
     <color name="ink">#1E2A26</color>
-    <color name="muted">#5D6B66</color>
 </resources>

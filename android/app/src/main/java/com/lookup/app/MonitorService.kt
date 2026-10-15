@@ -20,8 +20,14 @@ import androidx.core.content.ContextCompat
 
 /**
  * Checks every few seconds whether a tracked app is on screen and adds up the time.
- * Once a sitting reaches the threshold, a quote card pops up over the app.
- * A sitting ends after a few minutes away from all tracked apps.
+ *
+ * - Once a sitting reaches the threshold, a quote card pops up over the app.
+ * - The card offers "5 more minutes" up to [MAX_SNOOZES] times per sitting. After that the
+ *   only button leaves the app.
+ * - Leaving a tracked app after being nudged starts a [COOLDOWN_MS] break. Opening any
+ *   tracked app during the break brings the card straight back, with no snooze option.
+ * - A sitting without nudges ends after [BREAK_RESET_MS] away from all tracked apps; one
+ *   with nudges ends when its break runs out.
  */
 class MonitorService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -33,6 +39,10 @@ class MonitorService : Service() {
     private var lastSocialAt = 0L
     private var sessionMs = 0L
     private var nextNudgeAtMs = 0L
+    private var snoozesUsed = 0
+    private var nudgesThisSitting = 0
+    private var wasOnSocial = false
+    private var lastBreakNoticeAt = 0L
 
     private val tick = object : Runnable {
         override fun run() {
@@ -88,28 +98,72 @@ class MonitorService : Service() {
             sessionMs += dt
             lastSocialAt = now
             prefs.addToday(dt)
-            if (sessionMs >= nextNudgeAtMs && !overlay.isShowing) {
-                nudge(pkg!!)
-                // If they keep going without choosing, nudge again after the snooze time.
-                nextNudgeAtMs = sessionMs + SNOOZE_MS
+            if (!overlay.isShowing) {
+                if (now < prefs.cooldownUntil) {
+                    breakReminder(now)
+                } else if (sessionMs >= nextNudgeAtMs) {
+                    nudge(pkg!!)
+                    // If they keep going without choosing, nudge again after the snooze time.
+                    nextNudgeAtMs = sessionMs + SNOOZE_MS
+                }
             }
-        } else if (sessionMs > 0 && now - lastSocialAt > BREAK_RESET_MS) {
-            sessionMs = 0
-            nextNudgeAtMs = thresholdMs()
+        } else {
+            if (wasOnSocial && nudgesThisSitting > 0) {
+                // Just left after being nudged: start (or restart) the break.
+                prefs.cooldownUntil = now + COOLDOWN_MS
+            }
+            if (sessionMs > 0 && now - lastSocialAt > BREAK_RESET_MS && now >= prefs.cooldownUntil) {
+                sessionMs = 0
+                nextNudgeAtMs = thresholdMs()
+                snoozesUsed = 0
+                nudgesThisSitting = 0
+            }
         }
+        wasOnSocial = onSocial
     }
 
     private fun nudge(pkg: String) {
         prefs.countNudge()
+        nudgesThisSitting++
         val quote = Quotes.random()
         val minutes = (sessionMs / 60_000).toInt()
-        val appName = appLabel(pkg)
+        val header = getString(R.string.nudge_header, minutes, appLabel(pkg))
+        val snoozesLeft = MAX_SNOOZES - snoozesUsed
         if (Settings.canDrawOverlays(this)) {
-            overlay.show(quote, minutes, appName, onSnooze = {
-                nextNudgeAtMs = sessionMs + SNOOZE_MS
-            })
+            overlay.show(
+                quote, header,
+                hint = if (snoozesLeft == 0) getString(R.string.out_of_snoozes) else null,
+                snoozesLeft = snoozesLeft,
+                onSnooze = {
+                    snoozesUsed++
+                    nextNudgeAtMs = sessionMs + SNOOZE_MS
+                },
+            )
         } else {
-            quoteNotification(quote, minutes, appName)
+            quoteNotification(quote, header)
+        }
+    }
+
+    /** They came back to a tracked app during the break. No snoozing out of this one. */
+    private fun breakReminder(now: Long) {
+        val overlayAllowed = Settings.canDrawOverlays(this)
+        // Without the overlay there's nothing on screen to wait on, so don't re-notify every tick.
+        if (!overlayAllowed && now - lastBreakNoticeAt < 60_000) return
+        lastBreakNoticeAt = now
+        prefs.countNudge()
+        nudgesThisSitting++
+        val quote = Quotes.random()
+        val minsLeft = ((prefs.cooldownUntil - now + 59_999) / 60_000).toInt()
+        val minsAgo = ((COOLDOWN_MS / 60_000) - minsLeft).toInt().coerceAtLeast(0)
+        if (overlayAllowed) {
+            overlay.show(
+                quote, getString(R.string.cooldown_header),
+                hint = getString(R.string.cooldown_hint, minsAgo, minsLeft),
+                snoozesLeft = 0,
+                onSnooze = {},
+            )
+        } else {
+            quoteNotification(quote, getString(R.string.cooldown_header))
         }
     }
 
@@ -142,11 +196,11 @@ class MonitorService : Service() {
             .setOngoing(true)
             .build()
 
-    private fun quoteNotification(quote: Quote, minutes: Int, appName: String) {
+    private fun quoteNotification(quote: Quote, title: String) {
         if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return
         val n = NotificationCompat.Builder(this, CH_QUOTE)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getString(R.string.nudge_header, minutes, appName))
+            .setContentTitle(title)
             .setContentText(quote.text)
             .setStyle(NotificationCompat.BigTextStyle().bigText("“${quote.text}”\n— ${quote.author}"))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -164,6 +218,8 @@ class MonitorService : Service() {
         private const val TICK_MS = 5_000L
         private const val SNOOZE_MS = 5 * 60_000L
         private const val BREAK_RESET_MS = 3 * 60_000L
+        private const val MAX_SNOOZES = 3
+        private const val COOLDOWN_MS = 10 * 60_000L
         private const val CH_STATUS = "status"
         private const val CH_QUOTE = "quotes"
         private const val NOTIF_STATUS = 1

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+
+        <TextView
+            style="@style/RowDesc"
+            android:layout_marginTop="8dp"
+            android:text="@string/tagline" />
+
+        <TextView style="@style/Section" android:text="@string/today" />
+        <TextView
+            android:id="@+id/today"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceTitleLarge" />
+        <TextView android:id="@+id/today_nudges" style="@style/RowDesc" />
+
+        <TextView style="@style/Section" android:text="@string/setup" />
+
+            <LinearLayout style="@style/Row">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView style="@style/RowTitle" android:text="@string/step_usage" />
+                    <TextView style="@style/RowDesc" android:text="@string/step_usage_desc" />
+                    <TextView android:id="@+id/usage_status" style="@style/RowDesc" />
+                </LinearLayout>
+                <Button
+                    android:id="@+id/grant_usage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/grant" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/Row">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView style="@style/RowTitle" android:text="@string/step_overlay" />
+                    <TextView style="@style/RowDesc" android:text="@string/step_overlay_desc" />
+                    <TextView android:id="@+id/overlay_status" style="@style/RowDesc" />
+                </LinearLayout>
+                <Button
+                    android:id="@+id/grant_overlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/grant" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/Row">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView style="@style/RowTitle" android:text="@string/step_notif" />
+                    <TextView style="@style/RowDesc" android:text="@string/step_notif_desc" />
+                    <TextView android:id="@+id/notif_status" style="@style/RowDesc" />
+                </LinearLayout>
+                <Button
+                    android:id="@+id/grant_notif"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/grant" />
+            </LinearLayout>
+
+        <TextView style="@style/Section" android:text="@string/settings" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/enabled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enabled"
+            android:textSize="16sp" />
+
+        <LinearLayout style="@style/Row">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/threshold_label"
+                android:textSize="16sp" />
+            <Spinner
+                android:id="@+id/threshold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Row">
+            <TextView
+                android:id="@+id/tracked_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp" />
+            <Button
+                android:id="@+id/pick_apps"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/pick_apps" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/preview"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/preview" />
+    </LinearLayout>
+</ScrollView>

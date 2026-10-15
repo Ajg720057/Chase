@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">Look Up</string>
+    <string name="tagline">Keeps an eye on the clock while you\'re on social media, and nudges you with a quote when it\'s time to look up. Only time is measured. Nothing you see or do inside an app is read, and nothing leaves your phone.</string>
+
+    <string name="setup">Setup</string>
+    <string name="step_usage">1. Usage access</string>
+    <string name="step_usage_desc">Lets Look Up see which app is open, and for how long.</string>
+    <string name="step_overlay">2. Display over other apps</string>
+    <string name="step_overlay_desc">Lets the quote pop up on top of the social app.</string>
+    <string name="step_notif">3. Notifications</string>
+    <string name="step_notif_desc">Needed for the small \"Look Up is on\" notification.</string>
+    <string name="grant">Grant</string>
+    <string name="granted">✓ Granted</string>
+    <string name="not_granted">Not granted</string>
+
+    <string name="settings">Settings</string>
+    <string name="enabled">Monitoring on</string>
+    <string name="threshold_label">Show a quote after</string>
+    <string name="minutes_fmt">%d minutes</string>
+    <string name="pick_apps">Choose apps</string>
+    <string name="pick_apps_title">Apps that count as social media</string>
+    <string name="tracked_fmt">%d installed apps tracked</string>
+    <string name="preview">Preview a quote</string>
+
+    <string name="today">Today</string>
+    <string name="today_fmt">%1$dh %2$02dm on social media</string>
+    <plurals name="nudges_fmt">
+        <item quantity="one">%d nudge</item>
+        <item quantity="other">%d nudges</item>
+    </plurals>
+
+    <string name="need_usage_first">Grant usage access first.</string>
+    <string name="need_overlay_first">Grant \"Display over other apps\" first.</string>
+
+    <string name="channel_status">Monitoring status</string>
+    <string name="channel_quotes">Quotes</string>
+    <string name="status_title">Look Up is on</string>
+    <string name="status_text">You\'ll get a nudge after %d minutes of social media.</string>
+
+    <string name="nudge_header">%1$d minutes on %2$s</string>
+    <string name="put_it_down">I\'m putting it down</string>
+    <string name="five_more">5 more minutes</string>
+</resources>

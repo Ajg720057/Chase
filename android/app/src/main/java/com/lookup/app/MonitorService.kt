@@ -217,7 +217,7 @@ class MonitorService : Service() {
     companion object {
         private const val TICK_MS = 5_000L
         private const val SNOOZE_MS = 5 * 60_000L
-        private const val BREAK_RESET_MS = 3 * 60_000L
+        private const val BREAK_RESET_MS = 30 * 60_000L
         private const val MAX_SNOOZES = 3
         private const val COOLDOWN_MS = 10 * 60_000L
         private const val CH_STATUS = "status"

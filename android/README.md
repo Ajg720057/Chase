@@ -12,7 +12,7 @@ even request internet permission, so nothing can leave your phone.
 ## How it behaves
 
 - A *sitting* is continuous time in any tracked app. Switching between Instagram and
-  TikTok counts as one sitting. Being away from all of them for 3 minutes ends it.
+  TikTok counts as one sitting. Being away from all of them for 30 minutes ends it.
 - When a sitting reaches the limit (10 minutes by default, adjustable from 5 to 60), a
   full-screen quote appears over a scenic background with two choices:
   - **I'm putting it down**: closes the quote and goes to your home screen.

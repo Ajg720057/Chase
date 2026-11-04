@@ -98,7 +98,7 @@ test('all pass: dealer stuck at minimum', () => {
   for (let i = 0; i < 3; i++) s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
   assert.equal(s.phase, 'kitty');
   assert.equal(s.bidder, s.dealer);
-  assert.equal(s.bid, 25);
+  assert.equal(s.bid, 15);
 });
 
 function playFullHand(s, rng) {

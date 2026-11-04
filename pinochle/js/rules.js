@@ -7,10 +7,10 @@
 export const DEFAULT_RULES = {
   // First player to reach this total at the end of a hand wins.
   // If two or more pass it on the same hand, the highest total wins.
-  targetScore: 150,
+  targetScore: 100,
 
   // Bidding
-  minBid: 25,
+  minBid: 15,
   bidIncrement: 1,
   // What happens if all three players pass:
   //   'dealerStuck' - the dealer is forced to take it at the minimum bid

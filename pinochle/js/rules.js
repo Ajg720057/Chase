@@ -25,20 +25,20 @@ export const DEFAULT_RULES = {
   // Meld values (house scoring)
   meld: {
     run: 15, // A-10-K-Q-J of trump
-    doubleRun: 150,
+    doubleRun: 30, // doubles count as two of the single meld
     royalMarriage: 4, // K-Q of trump (only counted if not used in a run)
     marriage: 2, // K-Q of any other suit
     dix: 1, // 9 of trump, each
     pinochle: 4, // Q of spades + J of diamonds
     doublePinochle: 30, // both Q of spades + both J of diamonds
     acesAround: 10,
-    doubleAces: 100,
+    doubleAces: 20,
     kingsAround: 8,
-    doubleKings: 80,
+    doubleKings: 16,
     queensAround: 6,
-    doubleQueens: 60,
+    doubleQueens: 12,
     jacksAround: 4,
-    doubleJacks: 40,
+    doubleJacks: 8,
   },
 
   // The bidder may not bury trump; the 3 buried cards go in their trick pile.

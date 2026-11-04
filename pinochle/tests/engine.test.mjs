@@ -44,7 +44,9 @@ test('meld counting', () => {
   assert.equal(m.total, 15 + 4 + 4 + 1);
 
   const around = ['AS0', 'AH0', 'AD0', 'AC0', 'AS1', 'AH1', 'AD1', 'AC1'];
-  assert.equal(computeMeld(around, 'H', r).total, 100);
+  assert.equal(computeMeld(around, 'H', r).total, 20);
+  const run2 = ['AH0', 'TH0', 'KH0', 'QH0', 'JH0', 'AH1', 'TH1', 'KH1', 'QH1', 'JH1'];
+  assert.equal(computeMeld(run2, 'H', r).total, 30);
   assert.equal(computeMeld(['AS0', 'AH0', 'AD0', 'AC0'], 'H', r).total, 10);
   assert.equal(computeMeld(['KS0', 'KH0', 'KD0', 'KC0'], 'D', r).total, 8);
   assert.equal(computeMeld(['JS0', 'JH0', 'JD0', 'JC0'], 'D', r).total, 4);

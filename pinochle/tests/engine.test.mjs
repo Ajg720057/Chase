@@ -1,0 +1,154 @@
+// Run with: node --test pinochle/tests
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createGame, apply, legalPlays, trickWinnerIndex, cardPoints } from '../js/engine.js';
+import { computeMeld } from '../js/meld.js';
+import { DEFAULT_RULES } from '../js/rules.js';
+
+function seeded(seed) {
+  return () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+}
+
+function newTable(rules) {
+  let s = createGame('TEST', 'a', 'Alex', rules);
+  s = apply(s, 'b', { type: 'join', name: 'Bea' }).state;
+  s = apply(s, 'c', { type: 'join', name: 'Cal' }).state;
+  return s;
+}
+const ids = ['a', 'b', 'c'];
+const ok = (r) => {
+  assert.equal(r.error, undefined, r.error);
+  return r.state;
+};
+
+test('deal gives 15 cards each and a 3-card kitty', () => {
+  const s = ok(apply(newTable(), 'a', { type: 'start' }, seeded(1)));
+  assert.equal(s.phase, 'bidding');
+  assert.deepEqual(s.hands.map((h) => h.length), [15, 15, 15]);
+  assert.equal(s.kitty.length, 3);
+  assert.equal(new Set([...s.hands.flat(), ...s.kitty]).size, 48);
+});
+
+test('fourth player cannot join', () => {
+  const r = apply(newTable(), 'd', { type: 'join', name: 'Dee' });
+  assert.match(r.error, /full/);
+});
+
+test('meld counting', () => {
+  const r = DEFAULT_RULES;
+  // run in spades + extra K/Q spades (royal marriage) + pinochle + 9S dix
+  const hand = ['AS0', 'TS0', 'KS0', 'QS0', 'JS0', 'KS1', 'QS1', 'JD0', '9S0'];
+  const m = computeMeld(hand, 'S', r);
+  const names = m.items.map((i) => i.name).sort();
+  assert.deepEqual(names, ['Dix', 'Pinochle', 'Royal marriage', 'Run'].sort());
+  assert.equal(m.total, 150 + 40 + 40 + 10);
+
+  const around = ['AS0', 'AH0', 'AD0', 'AC0', 'AS1', 'AH1', 'AD1', 'AC1'];
+  assert.equal(computeMeld(around, 'H', r).total, 1000);
+  assert.equal(computeMeld(['KH0', 'QH0', 'KC0', 'QC0'], 'H', r).total, 40 + 20);
+  assert.equal(computeMeld(['QS0', 'QS1', 'JD0', 'JD1'], 'H', r).total, 300);
+});
+
+test('trick winner: trump beats led suit, first of equal cards wins', () => {
+  assert.equal(trickWinnerIndex([{ card: 'AH0' }, { card: '9S0' }, { card: 'TH0' }], 'S'), 1);
+  assert.equal(trickWinnerIndex([{ card: 'AH0' }, { card: 'AH1' }, { card: 'KD0' }], 'S'), 0);
+  assert.equal(trickWinnerIndex([{ card: 'JH0' }, { card: 'AD0' }, { card: 'QH0' }], 'S'), 2);
+});
+
+test('must follow suit and head the trick; must trump when void', () => {
+  const s = {
+    phase: 'play',
+    turn: 1,
+    trump: 'S',
+    rules: DEFAULT_RULES,
+    trick: { cards: [{ seat: 0, card: 'KH0' }] },
+    hands: [[], ['AH0', 'QH0', 'AS0', '9C0'], []],
+  };
+  assert.deepEqual(legalPlays(s, 1), ['AH0']);
+  s.hands[1] = ['QH0', 'JH0', 'AS0'];
+  assert.deepEqual(legalPlays(s, 1).sort(), ['JH0', 'QH0']);
+  s.hands[1] = ['AS0', '9S0', 'AC0'];
+  assert.deepEqual(legalPlays(s, 1).sort(), ['9S0', 'AS0']);
+  // over-trump required
+  s.trick.cards.push({ seat: 1, card: 'KS0' });
+  s.turn = 2;
+  s.hands[2] = ['AS1', '9S1', 'TC0'];
+  assert.deepEqual(legalPlays(s, 2), ['AS1']);
+});
+
+test('bidding: two passes ends the auction', () => {
+  let s = ok(apply(newTable(), 'a', { type: 'start' }, seeded(2)));
+  const first = s.bidding.turn;
+  s = ok(apply(s, ids[first], { type: 'bid', amount: 250 }));
+  assert.match(apply(s, ids[s.bidding.turn], { type: 'bid', amount: 265 }).error, /steps/);
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  assert.equal(s.phase, 'kitty');
+  assert.equal(s.bidder, first);
+  assert.equal(s.bid, 250);
+});
+
+test('all pass: dealer stuck at minimum', () => {
+  let s = ok(apply(newTable(), 'a', { type: 'start' }, seeded(3)));
+  for (let i = 0; i < 3; i++) s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  assert.equal(s.phase, 'kitty');
+  assert.equal(s.bidder, s.dealer);
+  assert.equal(s.bid, 250);
+});
+
+function playFullHand(s, rng) {
+  const first = s.bidding.turn;
+  s = ok(apply(s, ids[first], { type: 'bid', amount: 250 }));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  const b = ids[s.bidder];
+  s = ok(apply(s, b, { type: 'takeKitty' }));
+  assert.equal(s.hands[s.bidder].length, 18);
+  s = ok(apply(s, b, { type: 'trump', suit: 'H' }));
+  s = ok(apply(s, b, { type: 'bury', cards: s.hands[s.bidder].slice(-3) }));
+  s = ok(apply(s, b, { type: 'playHand' }));
+  let guard = 0;
+  while (s.phase === 'play' && guard++ < 100) {
+    const legal = legalPlays(s, s.turn);
+    assert.ok(legal.length > 0);
+    s = ok(apply(s, ids[s.turn], { type: 'play', card: legal[Math.floor(rng() * legal.length)] }));
+  }
+  return s;
+}
+
+test('full hand plays out and card points add up to 250', () => {
+  const rng = seeded(7);
+  let s = ok(apply(newTable(), 'a', { type: 'start' }, rng));
+  s = playFullHand(s, rng);
+  assert.ok(['handOver', 'gameOver'].includes(s.phase));
+  const h = s.lastHand;
+  assert.equal(h.trickPts.reduce((a, b) => a + b, 0), 250);
+  assert.equal(s.tricksWon.reduce((a, b) => a + b, 0), 15);
+  assert.equal(cardPoints([...s.taken.flat(), ...s.buried], s.rules), 240);
+});
+
+test('game plays to a winner', () => {
+  const rng = seeded(11);
+  let s = ok(apply(newTable({ targetScore: 500 }), 'a', { type: 'start' }, rng));
+  let hands = 0;
+  while (s.phase !== 'gameOver' && hands++ < 60) {
+    s = playFullHand(s, rng);
+    if (s.phase === 'handOver') s = ok(apply(s, 'a', { type: 'nextHand' }, rng));
+  }
+  assert.equal(s.phase, 'gameOver');
+  assert.ok(s.scores[s.winner] >= 500);
+});
+
+test('concede: bidder loses the bid, others keep meld', () => {
+  let s = ok(apply(newTable(), 'a', { type: 'start' }, seeded(5)));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'bid', amount: 300 }));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  s = ok(apply(s, ids[s.bidding.turn], { type: 'pass' }));
+  const b = s.bidder;
+  s = ok(apply(s, ids[b], { type: 'takeKitty' }));
+  s = ok(apply(s, ids[b], { type: 'trump', suit: 'S' }));
+  s = ok(apply(s, ids[b], { type: 'bury', cards: s.hands[b].slice(0, 3) }));
+  s = ok(apply(s, ids[b], { type: 'concede' }));
+  assert.equal(s.scores[b], -300);
+  for (let o = 0; o < 3; o++) if (o !== b) assert.equal(s.scores[o], s.melds[o].total);
+});

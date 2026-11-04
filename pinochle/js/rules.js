@@ -7,40 +7,42 @@
 export const DEFAULT_RULES = {
   // First player to reach this total at the end of a hand wins.
   // If two or more pass it on the same hand, the highest total wins.
-  targetScore: 1500,
+  targetScore: 150,
 
   // Bidding
-  minBid: 250,
-  bidIncrement: 10,
+  minBid: 25,
+  bidIncrement: 1,
   // What happens if all three players pass:
   //   'dealerStuck' - the dealer is forced to take it at the minimum bid
   //   'redeal'      - throw the hand in and the next player deals
   allPassAction: 'dealerStuck',
 
   // Points for each card taken in tricks (9-A deck, two of each card).
-  // Default is the common "counters" count: A, 10 and K are 10 each.
-  // Classic count would be { A: 11, T: 10, K: 4, Q: 3, J: 2, 9: 0 }.
-  cardPoints: { A: 10, T: 10, K: 10, Q: 0, J: 0, 9: 0 },
-  lastTrickBonus: 10,
+  // A, 10 and K are 1 point each, plus 1 for the last trick: 25 per hand.
+  cardPoints: { A: 1, T: 1, K: 1, Q: 0, J: 0, 9: 0 },
+  lastTrickBonus: 1,
 
-  // Meld values
+  // Meld values (house scoring)
   meld: {
-    run: 150, // A-10-K-Q-J of trump
-    doubleRun: 1500,
-    royalMarriage: 40, // K-Q of trump (only counted if not used in a run)
-    marriage: 20, // K-Q of any other suit
-    dix: 10, // 9 of trump, each
-    pinochle: 40, // Q of spades + J of diamonds
-    doublePinochle: 300,
-    acesAround: 100,
-    doubleAces: 1000,
-    kingsAround: 80,
-    doubleKings: 800,
-    queensAround: 60,
-    doubleQueens: 600,
-    jacksAround: 40,
-    doubleJacks: 400,
+    run: 15, // A-10-K-Q-J of trump
+    doubleRun: 150,
+    royalMarriage: 4, // K-Q of trump (only counted if not used in a run)
+    marriage: 2, // K-Q of any other suit
+    dix: 1, // 9 of trump, each
+    pinochle: 4, // Q of spades + J of diamonds
+    doublePinochle: 30, // both Q of spades + both J of diamonds
+    acesAround: 10,
+    doubleAces: 100,
+    kingsAround: 8,
+    doubleKings: 80,
+    queensAround: 6,
+    doubleQueens: 60,
+    jacksAround: 4,
+    doubleJacks: 40,
   },
+
+  // The bidder may not bury trump; the 3 buried cards go in their trick pile.
+  buryTrumpAllowed: false,
 
   // Trick play
   // Trump can't be led until it has been "broken": someone played trump

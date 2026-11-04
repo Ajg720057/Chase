@@ -170,9 +170,9 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px
 .status { text-align: center; font-weight: 600; min-height: 24px; }
 .status.mine { color: var(--gold); }
 
-.stepper { display: flex; align-items: center; gap: 8px; justify-content: center; }
-.stepper .val { font-size: 32px; font-weight: 800; min-width: 90px; text-align: center; }
-.stepper button { width: 52px; font-size: 22px; padding: 0; }
+.stepper { display: flex; align-items: center; gap: 6px; justify-content: center; }
+.stepper .val { font-size: 32px; font-weight: 800; min-width: 64px; text-align: center; }
+.stepper button { width: 48px; font-size: 18px; padding: 0; }
 
 .suits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .suits button { display: flex; flex-direction: column; align-items: center; background: var(--card); color: var(--black); }

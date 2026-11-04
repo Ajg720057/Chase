@@ -383,9 +383,11 @@ function phaseView(g) {
           mine
             ? `${statusLine('Your bid', true)}
           <div class="stepper">
+            <button class="secondary" data-act="bidstep" data-d="-5">−5</button>
             <button class="secondary" data-act="bidstep" data-d="-1">−</button>
             <div class="val">${ui.bidValue}</div>
             <button class="secondary" data-act="bidstep" data-d="1">+</button>
+            <button class="secondary" data-act="bidstep" data-d="5">+5</button>
           </div>
           <div class="row"><button class="secondary grow" data-act="pass">Pass</button><button class="grow" data-act="bid">Bid ${ui.bidValue}</button></div>`
             : statusLine(`Waiting for ${nm(b.turn)} to bid…`)
@@ -420,6 +422,7 @@ function phaseView(g) {
       const meld = computeMeld(left, g.trump, g.rules).total;
       return `<div class="panel stack center">
         ${statusLine(`Tap 3 cards to bury (${ui.burySel.length}/3)`, true)}
+        <p class="small muted">Buried cards go in your trick pile${g.rules.buryTrumpAllowed ? '' : '. Trump can\'t be buried'}.</p>
         <p class="small muted">Trump: ${suitHtml(g.trump)} ${SUIT_NAME[g.trump]} · Meld with what's left: <b>${meld}</b></p>
         <button data-act="bury" ${ui.burySel.length === 3 ? '' : 'disabled'}>Bury these 3</button>
       </div>`;
@@ -533,7 +536,10 @@ function handView(g) {
   const cards = hand
     .map((c) => {
       if (playing) return cardHtml(c, { cls: legal.has(c) ? 'playable' : 'dim', attrs: `data-act="play"${legal.has(c) ? '' : ' aria-disabled="true"'}` });
-      if (burying) return cardHtml(c, { cls: `playable${ui.burySel.includes(c) ? ' selected' : ''}`, attrs: 'data-act="toggleBury"' });
+      if (burying) {
+        if (!g.rules.buryTrumpAllowed && suit(c) === g.trump) return cardHtml(c, { cls: 'dim', attrs: 'data-act="noBury"' });
+        return cardHtml(c, { cls: `playable${ui.burySel.includes(c) ? ' selected' : ''}`, attrs: 'data-act="toggleBury"' });
+      }
       return cardHtml(c);
     })
     .join('');
@@ -571,7 +577,7 @@ function rulesSheet(g) {
       <li>48-card deck (9 through A, two of each). 15 cards each, 3 in the kitty.</li>
       <li>Bidding starts left of the dealer at ${r.minBid}, up by ${r.bidIncrement}. Once you pass you're out.
         ${r.allPassAction === 'dealerStuck' ? 'If everyone passes, the dealer takes it at the minimum.' : 'If everyone passes, the hand is redealt.'}</li>
-      <li>High bidder shows and takes the kitty, names trump, buries 3 cards${r.buriedPointsToBidder ? ' (their points count for the bidder)' : ''}, then everyone melds.</li>
+      <li>The kitty is shown to everyone. The high bidder takes it, names trump, and buries 3 cards in their trick pile${r.buryTrumpAllowed ? '' : ' (no trump)'}${r.buriedPointsToBidder ? '; their points count for the bidder' : ''}. Then everyone melds.</li>
       <li>Bidder leads first.${r.trumpMustBeBroken ? " Trump can't be led until someone has played it because they couldn't follow suit, unless you have nothing but trump left." : ''} Follow suit${r.mustHead ? ' and beat the winning card if you can' : ''}. If you can't follow${
         r.mustTrump ? `, you must trump${r.mustOvertrump ? ' (over-trumping if you can)' : ''}` : ', play anything'
       }. Of two identical cards, the first one played wins.</li>
@@ -656,6 +662,8 @@ $app.addEventListener('click', (e) => {
       return act({ type: 'takeKitty' });
     case 'trump':
       return act({ type: 'trump', suit: el.dataset.suit });
+    case 'noBury':
+      return toast("You can't bury trump.");
     case 'toggleBury': {
       const c = el.dataset.card;
       if (ui.burySel.includes(c)) ui.burySel = ui.burySel.filter((x) => x !== c);

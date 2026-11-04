@@ -203,6 +203,8 @@ export function apply(prev, playerId, action, rng = Math.random) {
       const hand = state.hands[seat];
       if (cards.length !== 3 || new Set(cards).size !== 3 || !cards.every((c) => hand.includes(c)))
         return err('Pick exactly 3 cards from your hand to bury.');
+      if (!state.rules.buryTrumpAllowed && cards.some((c) => suit(c) === state.trump))
+        return err("You can't bury trump.");
       state.hands[seat] = hand.filter((c) => !cards.includes(c));
       state.buried = cards;
       state.melds = state.hands.map((h) => computeMeld(h, state.trump, state.rules));

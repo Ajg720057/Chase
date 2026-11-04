@@ -43,6 +43,10 @@ export const DEFAULT_RULES = {
   },
 
   // Trick play
+  // Trump can't be led until it has been "broken": someone played trump
+  // because they couldn't follow suit. A player holding nothing but trump
+  // may always lead it.
+  trumpMustBeBroken: true,
   mustHead: true, // must beat the winning card when following suit, if able
   mustTrump: true, // if void in the led suit, must play trump if able
   mustOvertrump: true, // when trumping, must beat a trump already played, if able

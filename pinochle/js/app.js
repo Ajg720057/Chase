@@ -485,8 +485,9 @@ function trickView(g) {
       <div class="who">${esc(nameOf(g, seat))}${seat === me ? ' (you)' : ''}</div>
     </div>`;
   };
-  let info = `Trick ${Math.min(g.trickNo + 1, 15)} of 15<br>Trump ${suitHtml(g.trump)}`;
-  if (!current.length && g.lastTrick) info = `${esc(nameOf(g, g.lastTrick.winner))} took trick ${g.lastTrick.trickNo}<br>Trump ${suitHtml(g.trump)}`;
+  const broken = g.rules.trumpMustBeBroken ? `<br><span class="small">${g.trumpBroken ? 'Trump broken' : 'Trump not broken'}</span>` : '';
+  let info = `Trick ${Math.min(g.trickNo + 1, 15)} of 15<br>Trump ${suitHtml(g.trump)}${broken}`;
+  if (!current.length && g.lastTrick) info = `${esc(nameOf(g, g.lastTrick.winner))} took trick ${g.lastTrick.trickNo}<br>Trump ${suitHtml(g.trump)}${broken}`;
   const mine = g.turn === me;
   return `<div class="panel">
     <div class="table">${slot(left, 'slot-left')}<div class="info">${info}</div>${slot(right, 'slot-right')}${slot(me, 'slot-me')}</div>
@@ -571,7 +572,7 @@ function rulesSheet(g) {
       <li>Bidding starts left of the dealer at ${r.minBid}, up by ${r.bidIncrement}. Once you pass you're out.
         ${r.allPassAction === 'dealerStuck' ? 'If everyone passes, the dealer takes it at the minimum.' : 'If everyone passes, the hand is redealt.'}</li>
       <li>High bidder shows and takes the kitty, names trump, buries 3 cards${r.buriedPointsToBidder ? ' (their points count for the bidder)' : ''}, then everyone melds.</li>
-      <li>Bidder leads first. Follow suit${r.mustHead ? ' and beat the winning card if you can' : ''}. If you can't follow${
+      <li>Bidder leads first.${r.trumpMustBeBroken ? " Trump can't be led until someone has played it because they couldn't follow suit, unless you have nothing but trump left." : ''} Follow suit${r.mustHead ? ' and beat the winning card if you can' : ''}. If you can't follow${
         r.mustTrump ? `, you must trump${r.mustOvertrump ? ' (over-trumping if you can)' : ''}` : ', play anything'
       }. Of two identical cards, the first one played wins.</li>
       <li>Counters: ${cp}. Last trick: ${r.lastTrickBonus}.</li>

@@ -152,3 +152,31 @@ test('concede: bidder loses the bid, others keep meld', () => {
   assert.equal(s.scores[b], -300);
   for (let o = 0; o < 3; o++) if (o !== b) assert.equal(s.scores[o], s.melds[o].total);
 });
+
+test('trump cannot be led until broken, unless only trump is left', () => {
+  const s = {
+    phase: 'play',
+    turn: 0,
+    trump: 'S',
+    trumpBroken: false,
+    rules: DEFAULT_RULES,
+    trick: { cards: [] },
+    hands: [['AS0', 'KS0', '9H0', 'JC0'], [], []],
+  };
+  assert.deepEqual(legalPlays(s, 0).sort(), ['9H0', 'JC0']);
+  s.hands[0] = ['AS0', 'KS0'];
+  assert.deepEqual(legalPlays(s, 0).sort(), ['AS0', 'KS0']);
+  s.hands[0] = ['AS0', '9H0'];
+  s.trumpBroken = true;
+  assert.deepEqual(legalPlays(s, 0).sort(), ['9H0', 'AS0']);
+});
+
+test('trumping in on an off-suit lead breaks trump', () => {
+  let s = ok(apply(newTable(), 'a', { type: 'start' }, seeded(9)));
+  // Rig hands: bidder seat 0 leads hearts, seat 1 is void in hearts and trumps
+  s = { ...s, phase: 'play', trump: 'S', bidder: 0, turn: 0, trick: { leader: 0, cards: [] }, trumpBroken: false,
+        hands: [['AH0', 'KS0'], ['9S0', 'TC0'], ['KH0', 'QD0']] };
+  s = ok(apply(s, 'a', { type: 'play', card: 'AH0' }));
+  s = ok(apply(s, 'b', { type: 'play', card: '9S0' }));
+  assert.equal(s.trumpBroken, true);
+});

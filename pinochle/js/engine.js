@@ -69,9 +69,15 @@ export function legalPlays(state, seat) {
   if (state.phase !== 'play' || state.turn !== seat) return [];
   const hand = state.hands[seat];
   const trick = state.trick.cards;
-  if (trick.length === 0) return hand.slice();
   const r = state.rules;
   const trump = state.trump;
+  if (trick.length === 0) {
+    if (r.trumpMustBeBroken && !state.trumpBroken) {
+      const nonTrump = hand.filter((c) => suit(c) !== trump);
+      if (nonTrump.length) return nonTrump;
+    }
+    return hand.slice();
+  }
   const led = suit(trick[0].card);
   const winning = trick[trickWinnerIndex(trick, trump)].card;
   const wouldWin = (c) => beats(c, winning, led, trump);
@@ -236,6 +242,10 @@ export function apply(prev, playerId, action, rng = Math.random) {
       if (!legalPlays(state, seat).includes(card)) return err(illegalReason(state, seat));
       state.hands[seat] = state.hands[seat].filter((c) => c !== card);
       state.trick.cards.push({ seat, card });
+      if (suit(card) === state.trump && !state.trumpBroken) {
+        state.trumpBroken = true;
+        if (state.trick.cards.length > 1) log(state, `${me} broke trump.`);
+      }
       if (state.trick.cards.length < NUM_PLAYERS) {
         state.turn = next(seat);
         return { state };
@@ -281,6 +291,7 @@ export function apply(prev, playerId, action, rng = Math.random) {
 }
 
 function illegalReason(state, seat) {
+  if (state.trick.cards.length === 0) return `You can't lead trump until it has been broken.`;
   const led = suit(state.trick.cards[0].card);
   const hand = state.hands[seat];
   if (hand.some((c) => suit(c) === led)) {
@@ -306,6 +317,7 @@ function deal(state, rng) {
   state.taken = [[], [], []];
   state.tricksWon = [0, 0, 0];
   state.trickNo = 0;
+  state.trumpBroken = false;
   state.lastHand = null;
   log(state, `Hand ${state.handNo}: ${nameOf(state, state.dealer)} deals.`);
 }

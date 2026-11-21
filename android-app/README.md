@@ -43,7 +43,9 @@ signed with the same key (`app/lifeboard.keystore`).
 - It lists your unfinished tasks. Tasks with dates come first, soonest at the top, with overdue ones
   in red. Tasks without dates follow, sorted by priority.
 - Tick a checkbox to complete a task. A repeating task moves to its next date instead.
-- Tap a task to open it in the app.
+- Tap a task to quick-edit it in a popup without leaving the home screen. You can change the title,
+  priority, date (Today / Tomorrow / Next week or any date), time, alarm and repeat. **Open in app**
+  saves your changes and opens the full task for notes and subtasks. Tap **Upcoming** to open the app.
 - **+** opens a quick popup to add a task with a priority. **Date, alarm, subtasks…** opens the full editor.
 - The ✎ button opens a quick journal popup for today with a mood and text. **Add photos, title…** opens
   the full entry.

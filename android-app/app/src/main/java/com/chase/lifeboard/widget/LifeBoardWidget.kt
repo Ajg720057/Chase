@@ -186,7 +186,7 @@ private fun TaskLine(context: Context, item: WidgetTask) {
         Column(
             GlanceModifier
                 .defaultWeight()
-                .clickable(actionStartActivity(MainActivity.openTaskIntent(context, t.id))),
+                .clickable(actionStartActivity(QuickAddActivity.editIntent(context, t.id))),
         ) {
             Text(
                 t.title.ifBlank { "Untitled task" },

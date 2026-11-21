@@ -2,7 +2,9 @@ package com.chase.lifeboard.widget
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,20 +54,31 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /**
- * A small popup over the home screen for adding a task or journal entry
- * straight from the widget, without opening the full app.
+ * A small popup over the home screen for adding a task or journal entry, or
+ * quickly editing a task, straight from the widget without opening the full app.
  */
 class QuickAddActivity : ComponentActivity() {
-    private val app get() = application as LifeBoardApp
+    internal val lifeBoardApp get() = application as LifeBoardApp
+    private val app get() = lifeBoardApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_TASK
+        if (mode == MODE_EDIT) {
+            // Editing is mostly taps on chips and pickers, so don't pop the keyboard up.
+            window.setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+            )
+        }
         setContent {
             LifeBoardTheme {
                 Dialog(onDismissRequest = { finish() }) {
                     Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
-                        if (mode == MODE_JOURNAL) JournalForm() else TaskForm()
+                        when (mode) {
+                            MODE_JOURNAL -> JournalForm()
+                            MODE_EDIT -> EditTaskForm(intent.getLongExtra(EXTRA_TASK_ID, -1L))
+                            else -> TaskForm()
+                        }
                     }
                 }
             }
@@ -180,11 +193,19 @@ class QuickAddActivity : ComponentActivity() {
         const val EXTRA_MODE = "mode"
         const val MODE_TASK = "task"
         const val MODE_JOURNAL = "journal"
+        const val MODE_EDIT = "edit"
+        const val EXTRA_TASK_ID = "task_id"
 
         fun intent(context: Context, mode: String): Intent =
             Intent(context, QuickAddActivity::class.java)
                 .setAction("com.chase.lifeboard.QUICK_ADD_$mode")
                 .putExtra(EXTRA_MODE, mode)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+
+        fun editIntent(context: Context, taskId: Long): Intent =
+            intent(context, MODE_EDIT)
+                // Unique data so each widget row gets its own PendingIntent.
+                .setData(Uri.parse("lifeboard://edit/$taskId"))
+                .putExtra(EXTRA_TASK_ID, taskId)
     }
 }
